@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스코어보드</title>
+    <style>
+        /* 기본 스타일 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #c9e9e9; /* 이미지의 바깥쪽 배경색 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* 전체 컨테이너 */
+        .scorecard-container {
+            width: 100%;
+            max-width: 450px;
+            background-color: #f7f7f0; /* 이미지의 안쪽 배경색 */
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            border: 6px solid #f0d9a5; /* 상단 노란 테두리 */
+            box-sizing: border-box;
+        }
+
+        /* 라운드 컨트롤 */
+        .round-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .round-controls button {
+            background-color: #6a6a9f; /* 버튼 색상 */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .round-controls button:hover {
+            background-color: #5a5a8f;
+        }
+
+        #round-display {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* 플레이어 목록 */
+        .player-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 개별 플레이어 행 */
+        .player-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-initials {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .player-score-total {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #e0e0e0;
+            color: #333;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .plus-icon {
+            font-size: 1.5rem;
+            color: #888;
+        }
+
+        .score-input {
+            flex-grow: 1; /* 남은 공간을 모두 차지 */
+            height: 50px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 0 15px;
+            font-size: 1.2rem;
+            text-align: right;
+            box-sizing: border-box; /* 패딩 포함 크기 계산 */
+        }
+        
+        /* input type=number의 화살표 제거 */
+        .score-input::-webkit-outer-spin-button,
+        .score-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .score-input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* 하단 컨트롤 버튼 */
+        .footer-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .footer-controls button {
+            flex-grow: 1; /* 버튼이 공간을 나눠 가짐 */
+            background-color: #4a4a8f; /* 이미지의 하단 버튼 색상 */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .footer-controls button:hover {
+            background-color: #3a3a7f;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scorecard-container">
+        <div class="round-controls">
+            <button id="prev-round">&lt;</button>
+            <span id="round-display">ROUND 1</span>
+            <button id="next-round">&gt;</button>
+        </div>
+
+        <div id="player-list" class="player-list">
+            </div>
+
+        <div class="footer-controls">
+            <button id="new-game">NEW GAME</button>
+            <button id="add-player">ADD PLAYER</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM 요소 가져오기
+        const playerList = document.getElementById('player-list');
+        const addPlayerBtn = document.getElementById('add-player');
+        const newGameBtn = document.getElementById('new-game');
+        const nextRoundBtn = document.getElementById('next-round');
+        const prevRoundBtn = document.getElementById('prev-round');
+        const roundDisplay = document.getElementById('round-display');
+
+        // 게임 상태 관리
+        let players = []; // 플레이어 데이터 배열
+        let currentRound = 1;
+        const playerColors = ['#9b59b6', '#2ecc71', '#e74c3c', '#3498db', '#f1c40f', '#e67e22']; // 플레이어 이니셜 배경색
+
+        // --- 함수 정의 ---
+
+        /**
+         * 플레이어 목록을 다시 그리는 함수
+         */
+        function renderPlayers() {
+            playerList.innerHTML = ''; // 목록 비우기
+
+            players.forEach((player, index) => {
+                // 플레이어 행(row) 요소 생성
+                const playerRow = document.createElement('div');
+                playerRow.className = 'player-row';
+                // 각 플레이어를 고유 ID로 식별하기 위해 dataset 사용
+                playerRow.dataset.playerId = player.id; 
+
+                const color = playerColors[index % playerColors.length];
+
+                // innerHTML로 플레이어 UI 구성
+                playerRow.innerHTML = `
+                    <div class="player-initials" style="background-color: ${color}">${player.initials}</div>
+                    <div class="player-score-total">${player.totalScore}</div>
+                    <span class="plus-icon">+</span>
+                    <input type="number" class="score-input" placeholder="Round ${currentRound} 점수">
+                `;
+
+                playerList.appendChild(playerRow);
+            });
+        }
+
+        /**
+         * 새 플레이어를 추가하는 함수
+         */
+        function addPlayer() {
+            const initials = prompt('추가할 플레이어의 이니셜을 입력하세요 (2-3자):');
+            
+            if (initials && initials.trim().length > 0) {
+                const newPlayer = {
+                    id: Date.now(), // 고유 ID 생성
+                    initials: initials.trim().toUpperCase().substring(0, 3),
+                    totalScore: 0,
+                    scores: [] // 라운드별 점수 기록 (확장성)
+                };
+                players.push(newPlayer); // 플레이어 배열에 추가
+                renderPlayers(); // 목록 새로고침
+            }
+        }
+
+        /**
+         * 다음 라운드로 이동하는 함수
+         */
+        function nextRound() {
+            // 현재 입력된 점수들을 읽어와서 합산
+            const playerRows = document.querySelectorAll('.player-row');
+            
+            playerRows.forEach(row => {
+                const playerId = parseInt(row.dataset.playerId);
+                const scoreInput = row.querySelector('.score-input');
+                const score = parseInt(scoreInput.value) || 0; // 입력값이 없으면 0
+
+                // players 배열에서 해당 플레이어 찾기
+                const player = players.find(p => p.id === playerId);
+                
+                if (player && score > 0) {
+                    player.totalScore += score; // 총점 합산
+                    player.scores[currentRound - 1] = score; // 라운드별 점수 기록
+                }
+            });
+
+            // 라운드 번호 증가
+            currentRound++;
+            roundDisplay.textContent = `ROUND ${currentRound}`;
+
+            // 플레이어 목록 새로고침 (총점 업데이트 및 입력란 초기화)
+            renderPlayers();
+        }
+
+        /**
+         * 이전 라운드로 이동하는 함수 (점수 롤백 미구현, 라운드 번호만 변경)
+         */
+        function prevRound() {
+            if (currentRound > 1) {
+                // 경고: 이 기능은 단순히 라운드 숫자만 줄입니다.
+                // 실제 점수를 롤백하려면 scores 배열을 이용한 더 복잡한 로직이 필요합니다.
+                // 지금은 점수 합산 없이 라운드 번호만 이동합니다.
+                currentRound--;
+                roundDisplay.textContent = `ROUND ${currentRound}`;
+                renderPlayers(); // 입력란 placeholder 업데이트
+            }
+        }
+
+        /**
+         * 새 게임을 시작하는 함수
+         */
+        function newGame() {
+            if (confirm('정말로 새 게임을 시작하시겠습니까? 모든 점수가 초기화됩니다.')) {
+                players = []; // 플레이어 목록 초기화
+                currentRound = 1; // 라운드 1로 초기화
+                roundDisplay.textContent = 'ROUND 1';
+                renderPlayers(); // 화면 초기화
+            }
+        }
+
+        // --- 이벤트 리스너 연결 ---
+        addPlayerBtn.addEventListener('click', addPlayer);
+        nextRoundBtn.addEventListener('click', nextRound);
+        prevRoundBtn.addEventListener('click', prevRound);
+        newGameBtn.addEventListener('click', newGame);
+
+        // --- 초기 실행 ---
+        // 페이지 로드 시 이미지와 같이 2명의 플레이어를 기본으로 추가
+        players = [
+            { id: Date.now() + 1, initials: 'DY', totalScore: 0, scores: [] },
+            { id: Date.now() + 2, initials: 'HJ', totalScore: 0, scores: [] }
+        ];
+        renderPlayers(); // 초기 플레이어 목록 그리기
+
+    </script>
+
+</body>
+</html>
