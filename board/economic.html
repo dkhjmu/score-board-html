@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경제 지표 상관관계 시뮬레이터</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --danger: #dc2626;
+            /* 하락/부정적 */
+            --success: #16a34a;
+            /* 상승/긍정적 */
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        p.desc {
+            color: var(--text-sub);
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        /* 컨트롤러 영역 */
+        .control-panel {
+            background: var(--card-bg);
+            padding: 20px 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .rate-display {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* 그리드 레이아웃 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        /* 섹션 스타일 */
+        .section-col {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 10px;
+            padding: 5px;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 8px;
+        }
+
+        /* 카드 스타일 */
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            border-left: 5px solid transparent;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        .value-box {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-text {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            margin-top: 5px;
+        }
+
+        /* 동적 상태 클래스 */
+        .up {
+            color: var(--success);
+        }
+
+        .down {
+            color: var(--danger);
+        }
+
+        .card.up-border {
+            border-left-color: var(--success);
+        }
+
+        .card.down-border {
+            border-left-color: var(--danger);
+        }
+
+        /* 유동성 (중앙) */
+        .liquidity-container {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #eff6ff 0%, #ffffff 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #bfdbfe;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .flow-arrow {
+            font-size: 2rem;
+            color: var(--text-sub);
+            display: block;
+            margin: 10px 0;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>📊 경제 지표 상관관계 시뮬레이터</h1>
+<p class="desc">기준금리를 변경하여 유동성, 자산 가격, 경제 지표가 어떻게 서로 연동되는지 확인해보세요.<br>(*경제 이론에 기반한 단순화된 모델입니다)</p>
+
+<div class="control-panel">
+    <label>한국은행 기준금리 (Base Rate)</label>
+    <div class="rate-display" id="rateValue">3.50%</div>
+    <input type="range" id="rateSlider" min="0" max="10" step="0.25" value="3.50">
+    <div style="margin-top:10px; font-size:0.9rem; color:var(--text-sub);">
+        <span>◀ 저금리 (완화)</span>
+        <span style="float:right;">고금리 (긴축) ▶</span>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="liquidity-container">
+        <div class="card-title">💧 시장 유동성 (Market Liquidity)</div>
+        <div class="value-box" style="justify-content: center; font-size: 2rem;" id="liquidityVal">보통</div>
+        <div class="status-text" id="liquidityDesc">돈이 시장에 적당히 풀려 있습니다.</div>
+    </div>
+
+    <div class="section-col">
+        <div class="section-title">🛡️ 안전자산 (Safe Assets)</div>
+
+        <div class="card" id="card-bond">
+            <div class="card-header">
+                <span class="card-title">채권 가격 (Bonds)</span>
+                <span class="card-icon">📜</span>
+            </div>
+            <div class="value-box" id="val-bond">-</div>
+            <div class="status-text">금리와 가격은 역의 관계</div>
+        </div>
+
+        <div class="card" id="card-gold">
+            <div class="card-header">
+                <span class="card-title">금 (Gold)</span>
+                <span class="card-icon">🥇</span>
+            </div>
+            <div class="value-box" id="val-gold">-</div>
+            <div class="status-text">이자 없는 자산의 매력도</div>
+        </div>
+
+        <div class="card" id="card-realestate">
+            <div class="card-header">
+                <span class="card-title">부동산 (Real Estate)</span>
+                <span class="card-icon">🏢</span>
+            </div>
+            <div class="value-box" id="val-realestate">-</div>
+            <div class="status-text">대출 이자 부담의 영향</div>
+        </div>
+    </div>
+
+    <div class="section-col">
+        <div class="section-title">📉 경제 지표 (Indicators)</div>
+
+        <div class="card" id="card-cpi">
+            <div class="card-header">
+                <span class="card-title">물가 (Inflation)</span>
+                <span class="card-icon">🛒</span>
+            </div>
+            <div class="value-box" id="val-cpi">-</div>
+            <div class="status-text">소비 및 수요의 척도</div>
+        </div>
+
+        <div class="card" id="card-gdp">
+            <div class="card-header">
+                <span class="card-title">GDP 성장률</span>
+                <span class="card-icon">📈</span>
+            </div>
+            <div class="value-box" id="val-gdp">-</div>
+            <div class="status-text">경제 활성화 정도</div>
+        </div>
+
+        <div class="card" id="card-unemp">
+            <div class="card-header">
+                <span class="card-title">실업률 (Unemployment)</span>
+                <span class="card-icon">👔</span>
+            </div>
+            <div class="value-box" id="val-unemp">-</div>
+            <div class="status-text">기업 비용 및 고용 여력</div>
+        </div>
+    </div>
+
+    <div class="section-col">
+        <div class="section-title">🚀 위험자산 (Risk Assets)</div>
+
+        <div class="card" id="card-stock">
+            <div class="card-header">
+                <span class="card-title">주식 (Stocks)</span>
+                <span class="card-icon">📊</span>
+            </div>
+            <div class="value-box" id="val-stock">-</div>
+            <div class="status-text">기업 실적 및 유동성 민감</div>
+        </div>
+
+        <div class="card" id="card-crypto">
+            <div class="card-header">
+                <span class="card-title">가상화폐 (Crypto)</span>
+                <span class="card-icon">🪙</span>
+            </div>
+            <div class="value-box" id="val-crypto">-</div>
+            <div class="status-text">투기 수요 및 유동성 최민감</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const slider = document.getElementById('rateSlider');
+    const rateDisplay = document.getElementById('rateValue');
+
+    // 기준점 (Base: 금리 3.5%일 때의 가상 지수 100)
+    const BASE_RATE = 3.5;
+
+    function updateSimulation() {
+        const rate = parseFloat(slider.value);
+        rateDisplay.textContent = rate.toFixed(2) + "%";
+
+        // 유동성 계산 (금리와 정확히 반대)
+        // 금리가 0이면 유동성 100, 금리가 10이면 유동성 0
+        const liquidityScore = Math.max(0, 100 - (rate * 10));
+        updateLiquidityUI(liquidityScore);
+
+        // 각 자산별 민감도 설정 (Logic)
+        // rateDiff가 양수면 금리 인상(긴축), 음수면 금리 인하(완화)
+        const rateDiff = rate - BASE_RATE;
+
+        // 1. 안전자산
+        // 채권가격: 금리 오르면 가격 하락 (수익률은 오르지만 가격은 떨어짐)
+        updateCard('card-bond', 'val-bond', -rateDiff * 12, "가격", true);
+        // 금: 이자가 없으므로 고금리일 때 매력 하락
+        updateCard('card-gold', 'val-gold', -rateDiff * 8, "시세", true);
+        // 부동산: 대출 금리 상승으로 수요 감소 -> 가격 하락
+        updateCard('card-realestate', 'val-realestate', -rateDiff * 10, "지수", true);
+
+        // 2. 경제지표
+        // 물가: 금리 오르면 물가는 잡힘(하락 압력)
+        updateCard('card-cpi', 'val-cpi', -rateDiff * 6, "상승률", false, true);
+        // GDP: 금리 오르면 투자/소비 위축 -> 성장률 둔화
+        updateCard('card-gdp', 'val-gdp', -rateDiff * 5, "성장률", true);
+        // 실업률: 금리 오르면 기업 부담 증가 -> 실업률 상승 (나쁜 것)
+        // *주의: 실업률은 오르면 빨간색(부정), 내리면 초록색(긍정)
+        updateCard('card-unemp', 'val-unemp', rateDiff * 4, "%", false, false, true);
+
+        // 3. 위험자산
+        // 주식: 할인율 상승 및 유동성 축소로 하락
+        updateCard('card-stock', 'val-stock', -rateDiff * 15, "지수", true);
+        // 코인: 유동성에 가장 민감하게 반응
+        updateCard('card-crypto', 'val-crypto', -rateDiff * 25, "시세", true);
+    }
+
+    function updateLiquidityUI(score) {
+        const elVal = document.getElementById('liquidityVal');
+        const elDesc = document.getElementById('liquidityDesc');
+        const container = document.querySelector('.liquidity-container');
+
+        let text = "";
+        let desc = "";
+        let colorClass = "";
+
+        if (score > 80) {
+            text = "🌊 매우 풍부 (Flood)";
+            desc = "시장에 돈이 넘쳐나 투기 수요가 폭발합니다.";
+            container.style.background = "#dbeafe";
+        } else if (score > 60) {
+            text = "💧 풍부 (High)";
+            desc = "돈 구하기가 쉬워 자산 시장으로 자금이 이동합니다.";
+            container.style.background = "#eff6ff";
+        } else if (score > 40) {
+            text = "😐 보통 (Neutral)";
+            desc = "균형 잡힌 상태입니다.";
+            container.style.background = "#f3f4f6";
+        } else if (score > 20) {
+            text = "🌵 부족 (Tight)";
+            desc = "대출이 어렵고 현금의 가치가 높아집니다.";
+            container.style.background = "#fff1f2";
+        } else {
+            text = "🏜️ 가뭄 (Dry)";
+            desc = "시장에 돈이 말라붙어 현금이 왕(Cash is King)입니다.";
+            container.style.background = "#fef2f2";
+        }
+        elVal.innerText = text;
+        elDesc.innerText = desc;
+    }
+
+    /**
+     * @param {string} cardId - 카드 ID
+     * @param {string} valId - 값 표시 ID
+     * @param {number} changeRate - 변화율 (기준점 대비)
+     * @param {string} suffix - 단위 텍스트
+     * @param {boolean} isAsset - 자산인지(값이 오르면 좋음)
+     * @param {boolean} isNeutral - 중립적인지(물가 등)
+     * @param {boolean} isBadIfUp - 오르면 나쁜 것인지(실업률)
+     */
+    function updateCard(cardId, valId, changeRate, suffix, isAsset = false, isNeutral = false, isBadIfUp = false) {
+        const card = document.getElementById(cardId);
+        const valEl = document.getElementById(valId);
+
+        // 기본값 100에서 변화율 적용
+        let currentVal = 100 + changeRate;
+        let displayDiff = changeRate.toFixed(1);
+
+        let icon = changeRate >= 0 ? "▲" : "▼";
+        let colorClass = "";
+
+        if (isBadIfUp) {
+            // 실업률 같은 경우: 오르면(▲) 나쁨(Red), 내리면(▼) 좋음(Green)
+            colorClass = changeRate > 0 ? "down" : (changeRate < 0 ? "up" : "");
+        } else {
+            // 일반 자산/성장률: 오르면(▲) 좋음(Green), 내리면(▼) 나쁨(Red)
+            colorClass = changeRate > 0 ? "up" : (changeRate < 0 ? "down" : "");
+        }
+
+        if (changeRate === 0) {
+            icon = "-";
+            colorClass = "";
+        }
+
+        // 카드 테두리 색상 초기화 및 적용
+        card.classList.remove('up-border', 'down-border');
+        if (colorClass === 'up') card.classList.add('up-border');
+        if (colorClass === 'down') card.classList.add('down-border');
+
+        // 텍스트 업데이트
+        valEl.innerHTML = `<span class="${colorClass}">${icon} ${Math.abs(displayDiff)}%</span> <span style="font-size:0.8rem; color:#999; margin-left:5px;">(지수: ${currentVal.toFixed(0)})</span>`;
+    }
+
+    // 초기화
+    slider.addEventListener('input', updateSimulation);
+    updateSimulation();
+</script>
+</body>
+
+</html>
