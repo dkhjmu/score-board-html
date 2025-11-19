@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>금 가격 결정 요인 시뮬레이터 (Non-Monetary)</title>
+    <style>
+        :root {
+            --gold-color: #fbbf24;
+            --gold-dark: #b45309;
+            --bg: #1c1917;
+            --card: #292524;
+            --text: #e7e5e4;
+        }
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: var(--card);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid #444;
+        }
+        h1 {
+            text-align: center;
+            color: var(--gold-color);
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+        }
+        p.subtitle {
+            text-align: center;
+            color: #a8a29e;
+            margin-bottom: 40px;
+            font-size: 0.9rem;
+        }
+
+        /* 메인 금 가격 표시 */
+        .price-display {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .gold-icon {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 10px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .current-price {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .price-label { font-size: 1rem; color: #78716c; }
+
+        /* 슬라이더 컨트롤러 */
+        .controls {
+            display: grid;
+            gap: 25px;
+        }
+        .control-group {
+            background: rgba(0,0,0,0.2);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border-left: 4px solid #555;
+            transition: border-color 0.3s;
+        }
+
+        /* 각 팩터별 색상 */
+        .group-fear { border-left-color: #ef4444; } /* Red */
+        .group-bank { border-left-color: #3b82f6; } /* Blue */
+        .group-cost { border-left-color: #22c55e; } /* Green */
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .factor-desc {
+            font-size: 0.8rem;
+            color: #a8a29e;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #d6d3d1;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); background: var(--gold-color); }
+
+        /* 분석 텍스트 */
+        .analysis-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 10px;
+            color: #fff;
+            line-height: 1.6;
+        }
+        .highlight { color: var(--gold-color); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏆 금 가격 밸류에이션 (Gold Valuation)</h1>
+    <p class="subtitle">금리와 환율이 고정되었다고 가정할 때,<br>심리와 수급이 가격에 미치는 영향을 시뮬레이션합니다.</p>
+
+    <div class="price-display">
+        <span class="gold-icon">🧈</span>
+        <div class="price-label">예상 온스당 가격</div>
+        <div class="current-price" id="finalPrice">$2,000</div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group group-fear">
+            <div class="label-row">
+                <span>💣 지정학적 리스크 (Geopolitics)</span>
+                <span id="val-fear">보통</span>
+            </div>
+            <span class="factor-desc">전쟁, 분쟁, 정치적 불안정 등 공포 심리</span>
+            <input type="range" id="slider-fear" min="0" max="100" value="20">
+        </div>
+
+        <div class="control-group group-bank">
+            <div class="label-row">
+                <span>🏦 중앙은행 매수세 (Central Banks)</span>
+                <span id="val-bank">보통</span>
+            </div>
+            <span class="factor-desc">중국, 인도 등 국가 차원의 금 비축 수요 (탈달러)</span>
+            <input type="range" id="slider-bank" min="0" max="100" value="30">
+        </div>
+
+        <div class="control-group group-cost">
+            <div class="label-row">
+                <span>⛏️ 채굴 난이도/원가 (Mining Cost)</span>
+                <span id="val-cost">현행 유지</span>
+            </div>
+            <span class="factor-desc">인건비, 유가 상승 및 채굴량 고갈 문제</span>
+            <input type="range" id="slider-cost" min="0" max="50" value="0">
+        </div>
+    </div>
+
+    <div class="analysis-box" id="analysisText">
+    </div>
+</div>
+
+<script>
+    // 기본 가격 (Base Price) - 금리/환율이 중립적일 때의 가정 가격
+    const BASE_PRICE = 1800;
+
+    const sliderFear = document.getElementById('slider-fear');
+    const sliderBank = document.getElementById('slider-bank');
+    const sliderCost = document.getElementById('slider-cost');
+
+    const valFear = document.getElementById('val-fear');
+    const valBank = document.getElementById('val-bank');
+    const valCost = document.getElementById('val-cost');
+
+    const finalPriceEl = document.getElementById('finalPrice');
+    const analysisText = document.getElementById('analysisText');
+
+    function formatMoney(amount) {
+        return '$' + amount.toLocaleString();
+    }
+
+    function getLevelText(val) {
+        if(val < 20) return "낮음 (평화)";
+        if(val < 50) return "보통";
+        if(val < 80) return "높음 (긴장)";
+        return "매우 높음 (전쟁)";
+    }
+
+    function calculate() {
+        const fearScore = parseInt(sliderFear.value); // 0 ~ 100
+        const bankScore = parseInt(sliderBank.value); // 0 ~ 100
+        const costScore = parseInt(sliderCost.value); // 0 ~ 50
+
+        // 텍스트 업데이트
+        valFear.innerText = getLevelText(fearScore);
+
+        let bankText = "보통";
+        if(bankScore > 70) bankText = "강력 매수 (Whale)";
+        else if(bankScore > 40) bankText = "매수 우위";
+        else if(bankScore < 20) bankText = "매도/관망";
+        valBank.innerText = bankText;
+
+        valCost.innerText = costScore === 0 ? "현행 유지" : `+${costScore}% 상승`;
+
+        // 가격 계산 로직 (단순화된 모델)
+
+        // 1. 공포 프리미엄: 공포가 극에 달하면(100) 최대 $600 까지 프리미엄 붙음
+        const fearPremium = fearScore * 6;
+
+        // 2. 중앙은행 수요: 수요가 폭발하면(100) 최대 $400 까지 베이스를 올림
+        const bankPremium = bankScore * 4;
+
+        // 3. 원가 상승: 기본 가격 자체를 퍼센트로 올림 (가장 구조적인 상승)
+        // 원가가 오르면 베이스 가격이 오름
+        const costMultiplier = 1 + (costScore / 100);
+
+        // 최종 가격 = (기본가 * 원가상승분) + 공포프리미엄 + 수급프리미엄
+        let totalPrice = (BASE_PRICE * costMultiplier) + fearPremium + bankPremium;
+
+        // 디스플레이 업데이트
+        finalPriceEl.innerText = formatMoney(Math.round(totalPrice));
+
+        // 분석 멘트 생성
+        let ment = "";
+
+        if (fearScore > 80) {
+            ment += "🚨 <b>전쟁/위기 상황:</b> 지정학적 리스크가 시장을 지배하고 있습니다. 펀더멘털과 무관하게 '공포 매수세'가 가격을 밀어 올리고 있습니다.<br>";
+        } else if (bankScore > 80) {
+            ment += "🐳 <b>중앙은행의 쓸어담기:</b> 중국/러시아 등의 중앙은행이 금을 싹쓸이하고 있습니다. 가격이 잘 떨어지지 않는 강력한 지지선이 형성됩니다.<br>";
+        } else if (costScore > 30) {
+            ment += "🛑 <b>공급 부족 심화:</b> 채굴 원가가 급등하여 금의 '생산 단가' 자체가 높아졌습니다. 이는 장기적으로 가장 강력한 가격 상승 요인입니다.<br>";
+        } else {
+            ment += "⚖️ <b>안정적 흐름:</b> 특이한 외부 충격 없이, 금리나 환율 등 거시경제 지표에 따라 움직이는 일반적인 시장 상황입니다.<br>";
+        }
+
+        // 종합 코멘트 추가
+        if (totalPrice > 2500) {
+            ment += "<br>👉 현재 금은 <b>'슈퍼 사이클(Super Cycle)'</b> 진입 단계로 해석될 수 있습니다.";
+        }
+
+        analysisText.innerHTML = ment;
+    }
+
+    sliderFear.addEventListener('input', calculate);
+    sliderBank.addEventListener('input', calculate);
+    sliderCost.addEventListener('input', calculate);
+
+    calculate();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>글로벌 지정학적 리스크 대시보드 V2.5</title>
+    <style>
+        :root {
+            --bg-dark: #111827;
+            --card-dark: #1f2937;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --border-color: #374151;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 { text-align: center; margin-bottom: 10px; color: var(--text-main); }
+        p.desc { text-align: center; color: var(--text-sub); margin-bottom: 30px; }
+
+        /* --- 지도 영역 --- */
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+            /* 지도 비율 유지 (SVG viewBox 비율에 맞춤) */
+            padding-bottom: 50%;
+            background: #0f172a; /* 바다 색상 */
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .world-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 육지 색상 */
+            fill: #334155;
+            stroke: #1e293b;
+            stroke-width: 0.5;
+            transition: fill 0.3s;
+        }
+
+        /* --- 핀(Hotspot) 스타일 --- */
+        .pin {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: var(--accent-red);
+            border-radius: 50%;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 0 rgba(239, 68, 68, 0.4);
+            animation: pulse 2s infinite;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        .pin::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 24px; height: 24px;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 50%;
+            animation: ripple 2s infinite;
+        }
+        .pin:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            background-color: var(--accent-orange);
+            z-index: 15;
+        }
+        .pin.active {
+            background-color: var(--accent-orange);
+            box-shadow: 0 0 15px var(--accent-orange);
+            transform: translate(-50%, -50%) scale(1.3);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        @keyframes ripple {
+            0% { width: 12px; height: 12px; opacity: 1; }
+            100% { width: 40px; height: 40px; opacity: 0; }
+        }
+
+        /* --- 툴팁 --- */
+        .tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 20;
+            width: 240px;
+            border: 1px solid var(--accent-orange);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            /* 초기 위치 */
+            top: 0; left: 0;
+        }
+        .tooltip.visible { opacity: 1; }
+        .tooltip h3 { margin: 0 0 6px 0; color: var(--accent-orange); font-size: 0.95rem; border-bottom: 1px solid #334155; padding-bottom: 4px; }
+        .tooltip-body { line-height: 1.4; color: #cbd5e1; margin-bottom: 8px; }
+        .tag-box { display: flex; flex-wrap: wrap; gap: 4px; }
+        .tag {
+            background: #334155; color: #e2e8f0;
+            padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;
+            border: 1px solid #475569;
+        }
+        .tag.highlight { color: var(--accent-orange); border-color: var(--accent-orange); background: rgba(249, 115, 22, 0.1); }
+
+        /* --- 카드 그리드 --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-dark);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-orange);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .card.active {
+            border-color: var(--accent-orange);
+            background: #2d2a26;
+        }
+        .card.active::before {
+            content: '';
+            position: absolute; left: 0; top: 0; bottom: 0;
+            width: 4px; background: var(--accent-orange);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .card-title { font-weight: bold; font-size: 1rem; color: var(--text-main); }
+        .risk-level {
+            font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .level-high { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .level-mid { background: rgba(249, 115, 22, 0.15); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.3); }
+
+        .card-desc { font-size: 0.85rem; color: var(--text-sub); line-height: 1.5; margin-bottom: 15px; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+        .impact-label { font-size: 0.75rem; color: #64748b; margin-bottom: 6px; display: block; font-weight: 600; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌍 글로벌 지정학적 리스크 & 원자재 지도</h1>
+    <p class="desc">지도 위의 붉은 핀(Pin)을 확인하거나, 아래 카드를 클릭하여 상세 정보를 확인하세요.</p>
+
+    <div class="map-wrapper" id="mapWrapper">
+        <svg class="world-map" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+            <path d="M222.5,350.2 L235.1,330.5 L260.3,335.1 L280.5,380.2 L275.4,420.5 L265.1,450.2 L255.3,440.1 L240.2,390.5 L222.5,350.2 Z" fill="#334155" /> <path d="M550,300 L600,350 L620,420 L580,450 L530,400 L500,320 Z" fill="#334155" /> <g>
+            <path d="M50,70 L150,50 L300,40 L350,150 L250,250 L150,200 L100,150 Z" fill="#334155" opacity="0.8" />
+            <path d="M250,250 L320,250 L350,350 L300,450 L250,400 Z" fill="#334155" opacity="0.8"/>
+            <path d="M450,150 L420,100 L500,50 L800,50 L950,100 L900,250 L800,350 L700,300 L650,320 L600,250 L550,250 L500,200 Z" fill="#334155" opacity="0.8"/>
+            <path d="M450,250 L550,250 L600,350 L550,450 L450,400 Z" fill="#334155" opacity="0.8"/>
+            <path d="M800,350 L920,350 L920,450 L820,450 Z" fill="#334155" opacity="0.8"/>
+        </g>
+
+            <path d="M163.5,104.5 C163.5,104.5 249.1,80.3 249.1,80.3 C249.1,80.3 296.9,110.1 296.9,110.1 C296.9,110.1 262.5,182.3 262.5,182.3 C262.5,182.3 193.2,146.8 193.2,146.8 C193.2,146.8 163.5,104.5 163.5,104.5 Z M283.8,245.2 C283.8,245.2 340.2,227.5 340.2,227.5 C340.2,227.5 366.9,315.8 366.9,315.8 C366.9,315.8 311.5,448.2 311.5,448.2 C311.5,448.2 285.2,365.5 285.2,365.5 C285.2,365.5 265.5,295.8 265.5,295.8 C265.5,295.8 283.8,245.2 283.8,245.2 Z M448.5,152.8 C448.5,152.8 535.5,135.2 535.5,135.2 C535.5,135.2 572.2,230.5 572.2,230.5 C572.2,230.5 652.5,235.2 652.5,235.2 C652.5,235.2 635.5,352.2 635.5,352.2 C635.5,352.2 555.2,425.5 555.2,425.5 C555.2,425.5 485.5,268.2 485.5,268.2 C485.5,268.2 448.5,152.8 448.5,152.8 Z M548.5,112.8 C548.5,112.8 755.2,50.5 755.2,50.5 C755.2,50.5 915.5,65.2 915.5,65.2 C915.5,65.2 902.5,185.5 902.5,185.5 C902.5,185.5 805.5,255.2 805.5,255.2 C805.5,255.2 735.2,210.5 735.2,210.5 C735.2,210.5 655.5,215.5 655.5,215.5 C655.5,215.5 548.5,112.8 548.5,112.8 Z M805.5,325.5 C805.5,325.5 915.2,315.5 915.2,315.5 C915.2,315.5 935.5,415.5 935.5,415.5 C935.5,415.5 825.5,425.5 825.5,425.5 C825.5,425.5 805.5,325.5 805.5,325.5 Z" fill="#1e293b" stroke="none" style="display:none;" />
+
+            <path d="M958.6,67.6 C928.2,67.6 894.9,87.3 894.9,87.3 L860.1,185.9 L803.8,235.1 L759.9,221.8 L699.4,224.8 L660.1,217.2 L625.3,194.5 L569.3,140.0 L522.4,129.4 L486.1,138.5 L478.5,108.2 L511.8,67.3 L657.0,56.7 L794.7,47.6 L958.6,67.6 Z M273.2,75.2 L150.6,76.7 L85.5,113.0 L132.4,205.3 L242.9,256.8 L289.8,187.2 L373.1,134.2 L324.6,76.7 L273.2,75.2 Z M308.0,264.4 L347.3,271.9 L370.0,340.0 L320.1,459.6 L292.8,435.4 L277.7,371.8 L261.1,300.7 L308.0,264.4 Z M495.1,258.3 L537.5,265.9 L631.4,243.2 L648.0,326.4 L576.9,436.9 L510.3,373.4 L469.4,282.5 L495.1,258.3 Z M800.7,340.0 L920.3,340.0 L917.3,429.3 L828.0,426.3 L800.7,340.0 Z" fill="#334155" stroke="#475569" stroke-width="1" />
+
+        </svg>
+
+        <div id="pinContainer"></div>
+
+        <div class="tooltip" id="tooltip">
+            <h3 id="ttTitle">Title</h3>
+            <div class="tooltip-body" id="ttDesc">Description</div>
+            <div class="tag-box" id="ttTags"></div>
+        </div>
+    </div>
+
+    <div class="grid-container" id="cardContainer">
+    </div>
+</div>
+
+<script>
+    /* * [중요] 핀 위치(pos)를 새로운 지도 좌표계에 맞춰 재조정했습니다.
+     * Top/Left 퍼센트는 1000x500 viewBox 기준입니다.
+     */
+    const riskData = [
+        {
+            id: "ukraine",
+            title: "러시아-우크라이나 전쟁",
+            desc: "전쟁 장기화, 흑해 곡물 협정 및 가스관 이슈. 서방 제재 지속.",
+            impacts: ["천연가스", "밀/옥수수", "니켈", "비료"],
+            pos: { top: 26, left: 55 }, // Ukraine Region
+            level: "high"
+        },
+        {
+            id: "taiwan",
+            title: "중국-대만 양안 갈등",
+            desc: "대만 해협 봉쇄 훈련 및 미국의 반도체 제재. 무력 충돌 시 공급망 붕괴.",
+            impacts: ["반도체", "TSMC", "해운", "희토류"],
+            pos: { top: 40, left: 80 }, // Taiwan Region
+            level: "high"
+        },
+        {
+            id: "middleeast",
+            title: "이스라엘-중동 분쟁",
+            desc: "하마스/헤즈볼라 분쟁 및 이란 개입 리스크. 호르무즈 해협 위협.",
+            impacts: ["원유(WTI)", "금", "방산", "천연가스"],
+            pos: { top: 38, left: 58 }, // Middle East
+            level: "high"
+        },
+        {
+            id: "korea",
+            title: "한반도 지정학적 리스크",
+            desc: "북한 미사일 도발 및 핵실험 위협. 강대국 간 대리전 양상 우려.",
+            impacts: ["방산", "코스피", "환율(KRW)"],
+            pos: { top: 34, left: 82 }, // Korea
+            level: "mid"
+        },
+        {
+            id: "india",
+            title: "인도-파키스탄 (카슈미르)",
+            desc: "핵 보유국 간 국경 분쟁 및 수자원 갈등.",
+            impacts: ["면화", "인도 증시", "지역 안보"],
+            pos: { top: 39, left: 67 }, // India/Pakistan border
+            level: "mid"
+        },
+        {
+            id: "scs",
+            title: "남중국해 영유권 분쟁",
+            desc: "중국 vs 필리핀/베트남. 해상 물동량의 30%가 지나는 항로.",
+            impacts: ["해상운임", "에너지 수송", "조선"],
+            pos: { top: 48, left: 76 }, // South China Sea
+            level: "mid"
+        },
+        {
+            id: "southamerica",
+            title: "남미 자원 민족주의 & 정정불안",
+            desc: "리튬/구리 광산 국유화 움직임 및 마약 카르텔 이슈.",
+            impacts: ["구리", "리튬", "커피", "2차전지"],
+            pos: { top: 70, left: 29 }, // South America (Bolivia/Chile area)
+            level: "mid"
+        },
+        {
+            id: "arctic",
+            title: "북극해 자원/항로 경쟁",
+            desc: "러시아 vs NATO. 쇄빙선 항로 및 매장 자원 선점 경쟁.",
+            impacts: ["LNG", "조선(쇄빙선)", "희토류"],
+            pos: { top: 8, left: 50 }, // Arctic Ocean
+            level: "mid"
+        }
+    ];
+
+    const pinContainer = document.getElementById('pinContainer');
+    const cardContainer = document.getElementById('cardContainer');
+    const tooltip = document.getElementById('tooltip');
+    const ttTitle = document.getElementById('ttTitle');
+    const ttDesc = document.getElementById('ttDesc');
+    const ttTags = document.getElementById('ttTags');
+    const mapWrapper = document.getElementById('mapWrapper');
+
+    let activeId = null;
+
+    function createElements() {
+        riskData.forEach(risk => {
+            // 1. Create Pin
+            const pin = document.createElement('div');
+            pin.className = 'pin';
+            pin.dataset.id = risk.id;
+            pin.style.top = risk.pos.top + '%';
+            pin.style.left = risk.pos.left + '%';
+
+            pin.addEventListener('mouseenter', (e) => showTooltip(e, risk));
+            pin.addEventListener('mouseleave', hideTooltip);
+            pin.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleRisk(risk.id);
+            });
+
+            pinContainer.appendChild(pin);
+
+            // 2. Create Card
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = risk.id;
+
+            const levelClass = risk.level === 'high' ? 'level-high' : 'level-mid';
+            const levelText = risk.level === 'high' ? 'High Risk' : 'Moderate';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="card-title">${risk.title}</span>
+                    <span class="risk-level ${levelClass}">${levelText}</span>
+                </div>
+                <div class="card-desc">${risk.desc}</div>
+                <span class="impact-label">IMPACT SECTORS</span>
+                <div class="tag-box">
+                    ${risk.impacts.map(tag => {
+                const isHighlight = ['반도체','천연가스','구리','원유(WTI)'].some(k => tag.includes(k));
+                return `<span class="tag ${isHighlight ? 'highlight' : ''}">${tag}</span>`;
+            }).join('')}
+                </div>
+            `;
+
+            card.addEventListener('click', () => toggleRisk(risk.id));
+            cardContainer.appendChild(card);
+        });
+    }
+
+    function toggleRisk(id) {
+        // If clicking same risk, toggle off
+        if (activeId === id) {
+            resetActive();
+            return;
+        }
+        activeId = id;
+
+        // Reset others
+        document.querySelectorAll('.pin, .card').forEach(el => el.classList.remove('active'));
+
+        // Activate target
+        const pin = document.querySelector(`.pin[data-id="${id}"]`);
+        const card = document.querySelector(`.card[data-id="${id}"]`);
+
+        if(pin) pin.classList.add('active');
+        if(card) {
+            card.classList.add('active');
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    function resetActive() {
+        activeId = null;
+        document.querySelectorAll('.pin, .card').forEach(el => el.classList.remove('active'));
+    }
+
+    function showTooltip(e, risk) {
+        // Don't show tooltip if active (mobile friendly logic)
+        if (activeId === risk.id) return;
+
+        ttTitle.textContent = risk.title;
+        ttDesc.textContent = risk.desc;
+        ttTags.innerHTML = risk.impacts.map(tag => `<span class="tag">${tag}</span>`).join('');
+
+        tooltip.classList.add('visible');
+
+        // Position Calculation
+        const mapRect = mapWrapper.getBoundingClientRect();
+        // Mouse position relative to map
+        let left = e.clientX - mapRect.left + 20;
+        let top = e.clientY - mapRect.top - 10;
+
+        // Boundary check
+        if (left + 250 > mapRect.width) left = e.clientX - mapRect.left - 260;
+        if (top + 150 > mapRect.height) top = mapRect.height - 150;
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+    }
+
+    function hideTooltip() {
+        tooltip.classList.remove('visible');
+    }
+
+    // Initialize
+    createElements();
+
+    // Background Click reset
+    mapWrapper.addEventListener('click', (e) => {
+        if(e.target.closest('.pin')) return;
+        resetActive();
+    });
+
+</script>
+
+</body>
+</html>
