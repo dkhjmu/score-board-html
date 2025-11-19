@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미국채 30년물 커버드콜 수익 구조 시뮬레이터</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --primary: #0f172a;
+            --accent: #3b82f6;
+        }
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 12px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 10px; }
+        label { font-weight: 600; font-size: 0.9rem; }
+
+        /* 슬라이더 스타일 */
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .value-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .summary-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-left: 4px solid var(--accent);
+            background: #eff6ff;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .highlight-red { color: #ef4444; font-weight: bold; }
+        .highlight-blue { color: #3b82f6; font-weight: bold; }
+
+        @media (max-width: 600px) {
+            .controls { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🇺🇸 미국채 30년물 커버드콜(Covered Call) 전략 시뮬레이터</h1>
+    <p style="text-align: center; color: #64748b; font-size: 0.9rem;">
+        금리 변화에 따른 채권 가격 변동과 옵션 프리미엄 수익의 관계를 분석합니다.
+    </p>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>🏷️ 커버드콜 매도 비중 (Hedge Ratio)</label>
+            <div class="value-display"><span id="ccPercentVal">50</span>%</div>
+            <input type="range" id="ccSlider" min="0" max="100" step="10" value="50">
+            <small style="color:#666;">0%: 채권만 보유(공격적) <br> 100%: 완전 방어형(JEPI/TLTW 등)</small>
+        </div>
+
+        <div class="control-group">
+            <label>💰 연간 옵션 프리미엄 수익률 (Premium)</label>
+            <div class="value-display"><span id="premiumVal">12</span>%</div>
+            <input type="range" id="premiumSlider" min="4" max="20" step="1" value="12">
+            <small style="color:#666;">변동성이 클수록 프리미엄이 높음 (보통 8~15%)</small>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="payoffChart"></canvas>
+    </div>
+
+    <div class="summary-box" id="analysisText">
+    </div>
+</div>
+
+<script>
+    // --- 상수 및 설정 ---
+    // 미국채 30년물 가정: 듀레이션 약 17년 (금리 1% 변동 시 가격 17% 변동)
+    const DURATION = 17;
+    const BOND_COUPON = 4.0; // 채권 자체 이자 (연 4% 가정)
+
+    const ctx = document.getElementById('payoffChart').getContext('2d');
+    const ccSlider = document.getElementById('ccSlider');
+    const premiumSlider = document.getElementById('premiumSlider');
+    const ccDisplay = document.getElementById('ccPercentVal');
+    const premiumDisplay = document.getElementById('premiumVal');
+    const analysisText = document.getElementById('analysisText');
+
+    let myChart;
+
+    // --- 데이터 계산 로직 ---
+    function calculateData(ccRatio, annualPremium) {
+        const labels = [];
+        const bondOnlyData = [];
+        const strategyData = [];
+
+        // X축: 금리 변화 (-2.0% ~ +2.0%)
+        for (let rateChange = -2.0; rateChange <= 2.0; rateChange += 0.2) {
+            const rateChangeFixed = parseFloat(rateChange.toFixed(1));
+            labels.push(`${rateChangeFixed > 0 ? '+' : ''}${rateChangeFixed}%`);
+
+            // 1. 채권 가격 변동 (Duration 효과)
+            // 금리 상승 -> 가격 하락 ( -Duration * rateChange )
+            const priceChange = -DURATION * rateChangeFixed;
+
+            // 2. 순수 채권 보유 총 수익 (가격변동 + 채권이자)
+            const rawBondReturn = priceChange + BOND_COUPON;
+
+            // 3. 커버드콜 옵션 손익 구조 (단순화 모델)
+            // 옵션 매도분: 채권 가격이 상승하면(금리 하락) 상승분 포기(Cap), 하락하면 프리미엄 방어
+            // 상승장(금리인하): 옵션 행사됨 -> 자본이득 제한 (옵션 프리미엄만 먹음)
+            // 하락장(금리인상): 옵션 행사 안됨 -> 옵션 프리미엄 전체 이익
+
+            // 옵션 매도 포지션의 P&L (채권 가격 변동에 대한)
+            // 가격 상승시: -(상승분) 만큼 손실이 나서 채권 이익을 상쇄함 (단, 프리미엄은 받음)
+            // 가격 하락시: 0 (행사 포기), 프리미엄은 그대로 이익
+
+            let optionPayoffFromPrice = 0;
+            if (priceChange > 0) {
+                // 채권 가격이 올랐을 때 (금리 인하), 콜옵션 매도자는 가격 상승분을 손해봄(상대방에게 줘야함)
+                optionPayoffFromPrice = -priceChange;
+            } else {
+                // 채권 가격이 떨어졌을 때, 옵션은 소멸. 추가 손익 없음.
+                optionPayoffFromPrice = 0;
+            }
+
+            // 전략 수익률 계산
+            // (비중 * 커버드콜 수익) + ((1-비중) * 그냥 채권 수익)
+            // 커버드콜 수익 = 채권가격변동 + 채권이자 + 옵션프리미엄 + 옵션가격손익
+
+            const coveredCallPartReturn = priceChange + BOND_COUPON + annualPremium + optionPayoffFromPrice;
+            const pureBondPartReturn = rawBondReturn;
+
+            const weightedReturn = (ccRatio * coveredCallPartReturn) + ((1 - ccRatio) * pureBondPartReturn);
+
+            bondOnlyData.push(rawBondReturn);
+            strategyData.push(weightedReturn);
+        }
+
+        return { labels, bondOnlyData, strategyData };
+    }
+
+    // --- 차트 그리기 ---
+    function updateChart() {
+        const ccRatio = parseFloat(ccSlider.value) / 100;
+        const premium = parseFloat(premiumSlider.value);
+
+        ccDisplay.innerText = ccSlider.value;
+        premiumDisplay.innerText = premiumSlider.value;
+
+        const data = calculateData(ccRatio, premium);
+
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: '나의 전략 (Adjusted)',
+                        data: data.strategyData,
+                        borderColor: '#3b82f6', // Blue
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: '채권 100% 보유 (Benchmark)',
+                        data: data.bondOnlyData,
+                        borderColor: '#ef4444', // Red
+                        borderWidth: 2,
+                        borderDash: [5, 5], // 점선
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                yMin: 0,
+                                yMax: 0,
+                                borderColor: 'black',
+                                borderWidth: 1,
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: '금리 변화 (%p)' },
+                        grid: { display: false }
+                    },
+                    y: {
+                        title: { display: true, text: '총 수익률 (%)' },
+                        grid: { color: '#e2e8f0' }
+                    }
+                }
+            }
+        });
+
+        updateAnalysis(ccRatio, premium);
+    }
+
+    function updateAnalysis(ccRatio, premium) {
+        let text = "";
+        if (ccRatio === 0) {
+            text = "현재 <b>순수 채권형(Buy & Hold)</b> 포트폴리오입니다.<br>금리 하락 시 시세 차익을 100% 누릴 수 있지만, 금리 상승 시 방어막이 전혀 없어 손실이 큽니다.";
+        } else if (ccRatio >= 0.8) {
+            text = `현재 <b>고배당/방어형(High Income)</b> 포트폴리오입니다.<br>연 ${premium}% 수준의 옵션 프리미엄 덕분에 금리가 약간 오르거나 횡보해도 수익을 냅니다.<br>하지만 <span class="highlight-red">금리가 대폭 하락(채권 급등)할 때 상승분이 제한(Capped)</span>되어 시장 수익률을 따라가지 못합니다.`;
+        } else {
+            text = `현재 <b>혼합형(Balanced)</b> 포트폴리오입니다.<br>보유 물량의 ${(ccRatio*100).toFixed(0)}%만 옵션을 매도하여, <span class="highlight-blue">하락장에서의 쿠션 효과</span>와 <span class="highlight-red">상승장에서의 시세 차익</span>을 적절히 타협했습니다.`;
+        }
+        analysisText.innerHTML = text;
+    }
+
+    // 이벤트 리스너
+    ccSlider.addEventListener('input', updateChart);
+    premiumSlider.addEventListener('input', updateChart);
+
+    // 초기 실행
+    updateChart();
+</script>
+
+</body>
+</html>
