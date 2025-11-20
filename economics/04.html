@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4단계: 기업은 어떻게 돈을 버나?</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --income-color: #3498db; /* 매출: 파랑 */
+            --cost-color: #e74c3c;   /* 비용: 빨강 */
+            --profit-color: #2ecc71; /* 이익: 초록 */
+            --invest-color: #9b59b6; /* 재투자: 보라 */
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; margin-bottom: 20px; text-align: center; }
+
+        .container {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        /* 섹션 구분 */
+        .section { margin-bottom: 30px; border-bottom: 1px dashed #ddd; padding-bottom: 20px; }
+        .section:last-child { border-bottom: none; margin-bottom: 0; }
+
+        h2 { font-size: 1.2rem; margin-bottom: 15px; border-left: 5px solid var(--income-color); padding-left: 10px; }
+
+        /* 슬라이더 그룹 */
+        .input-group { margin-bottom: 15px; }
+        label { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+
+        /* 막대 그래프 (Bar Chart) */
+        .bar-container {
+            display: flex;
+            height: 40px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            background-color: #eee;
+            font-size: 0.9rem;
+            color: white;
+            line-height: 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .bar-revenue { background-color: var(--income-color); width: 100%; } /* 전체 길이 기준 */
+
+        /* 비용과 이익을 겹쳐서 표현하기 위한 스타일 */
+        .bar-breakdown {
+            display: flex;
+            width: 100%;
+            height: 50px;
+            margin-top: 5px;
+        }
+        .bar-cost { background-color: var(--cost-color); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; transition: width 0.3s; }
+        .bar-profit { background-color: var(--profit-color); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; transition: width 0.3s; }
+        .bar-loss { background-color: #95a5a6; color: white; width: 100%; text-align: center; line-height: 50px; display: none; }
+
+        /* 숫자 표시 */
+        .money-text { float: right; color: #555; }
+
+        /* CEO의 선택 영역 */
+        .ceo-decision {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            display: none; /* 이익이 나야 보임 */
+        }
+        .decision-bar {
+            height: 30px;
+            background: linear-gradient(to right, var(--profit-color) 50%, var(--invest-color) 50%);
+            border-radius: 15px;
+            margin: 10px 0;
+            position: relative;
+        }
+        /* 커스텀 슬라이더 */
+        .split-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+        .split-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #333;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .distribution-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        .txt-div { color: var(--profit-color); }
+        .txt-inv { color: var(--invest-color); }
+
+    </style>
+</head>
+<body>
+
+<h1>4단계: 돈은 어떻게 벌까?</h1>
+<p class="subtitle">매출 - 비용 = 순이익 (진짜 내 돈!)</p>
+
+<div class="container">
+
+    <div class="section">
+        <h2 style="border-color: var(--income-color);">🏪 떡볶이 장사하기</h2>
+
+        <div class="input-group">
+            <label>떡볶이 1인분 가격 <span class="money-text" id="valPrice">5,000원</span></label>
+            <input type="range" id="rangePrice" min="3000" max="10000" step="500" value="5000">
+        </div>
+
+        <div class="input-group">
+            <label>하루 손님 수 <span class="money-text" id="valCustomers">100명</span></label>
+            <input type="range" id="rangeCustomers" min="10" max="200" step="10" value="100">
+        </div>
+
+        <div class="input-group">
+            <label>재료비+월세 (비용) <span class="money-text" id="valCost">300,000원</span></label>
+            <input type="range" id="rangeCost" min="100000" max="1000000" step="50000" value="300000">
+            <p style="font-size:0.8rem; color:#888; margin-top:5px;">* 재료를 좋은 걸 쓰거나 월세가 비싸면 비용이 늘어나요.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 style="border-color: var(--profit-color);">📊 오늘의 성적표</h2>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <strong>총 매출 (번 돈)</strong>
+            <strong style="color: var(--income-color);" id="resRevenue">500,000원</strong>
+        </div>
+
+        <div class="bar-breakdown">
+            <div id="barCost" class="bar-cost">비용 (60%)</div>
+            <div id="barProfit" class="bar-profit">순이익 (40%)</div>
+            <div id="barLoss" class="bar-loss">😭 적자 (손해 봤어요!)</div>
+        </div>
+
+        <div style="text-align: right; margin-top: 10px;">
+            <span>최종 순이익: </span>
+            <span id="resNetIncome" style="font-size: 1.5rem; font-weight: bold; color: var(--profit-color);">200,000원</span>
+        </div>
+    </div>
+
+    <div class="section ceo-decision" id="ceoSection">
+        <h2 style="border-color: var(--invest-color);">🤔 사장님의 결정</h2>
+        <p style="font-size: 0.9rem;">남은 돈 <strong><span id="decideMoney">200,000</span>원</strong>을 어떻게 할까요?</p>
+
+        <input type="range" id="splitSlider" class="split-slider" min="0" max="100" value="50">
+
+        <div class="decision-bar" id="decisionBar"></div>
+
+        <div class="distribution-info">
+            <div class="txt-div">
+                💸 배당금 (주주에게)<br>
+                <span id="valDividend">100,000원</span>
+            </div>
+            <div class="txt-inv" style="text-align: right;">
+                🏭 재투자 (가게 확장)<br>
+                <span id="valInvest">100,000원</span>
+            </div>
+        </div>
+
+        <p id="decisionMsg" style="margin-top: 15px; font-size: 0.9rem; background: #eee; padding: 10px; border-radius: 5px;">
+            "반반씩 나누자! 주주도 챙기고, 미래를 위해 저금도 하고."
+        </p>
+    </div>
+
+</div>
+
+<script>
+    // 요소 가져오기
+    const rangePrice = document.getElementById('rangePrice');
+    const rangeCustomers = document.getElementById('rangeCustomers');
+    const rangeCost = document.getElementById('rangeCost');
+    const splitSlider = document.getElementById('splitSlider');
+
+    const valPrice = document.getElementById('valPrice');
+    const valCustomers = document.getElementById('valCustomers');
+    const valCost = document.getElementById('valCost');
+
+    const resRevenue = document.getElementById('resRevenue');
+    const resNetIncome = document.getElementById('resNetIncome');
+
+    const barCost = document.getElementById('barCost');
+    const barProfit = document.getElementById('barProfit');
+    const barLoss = document.getElementById('barLoss');
+
+    const ceoSection = document.getElementById('ceoSection');
+    const decideMoney = document.getElementById('decideMoney');
+    const valDividend = document.getElementById('valDividend');
+    const valInvest = document.getElementById('valInvest');
+    const decisionBar = document.getElementById('decisionBar');
+    const decisionMsg = document.getElementById('decisionMsg');
+
+    let netIncome = 0;
+
+    function formatMoney(num) {
+        return num.toLocaleString() + '원';
+    }
+
+    function updateSimulation() {
+        // 1. 계산 로직
+        const price = parseInt(rangePrice.value);
+        const customers = parseInt(rangeCustomers.value);
+        const cost = parseInt(rangeCost.value); // 고정비용 성격으로 단순화
+
+        const revenue = price * customers; // 매출
+        netIncome = revenue - cost; // 순이익
+
+        // 2. 텍스트 업데이트
+        valPrice.textContent = formatMoney(price);
+        valCustomers.textContent = customers + '명';
+        valCost.textContent = formatMoney(cost);
+        resRevenue.textContent = formatMoney(revenue);
+        resNetIncome.textContent = formatMoney(netIncome);
+
+        // 3. 그래프 업데이트
+        if (revenue <= 0) {
+            // 매출 0일 때 예외처리
+            barCost.style.width = '0%';
+            barProfit.style.width = '0%';
+            barLoss.style.display = 'none';
+        } else if (netIncome >= 0) {
+            // 흑자 (돈을 범)
+            barLoss.style.display = 'none';
+            barCost.style.display = 'flex';
+            barProfit.style.display = 'flex';
+
+            const costPercent = (cost / revenue) * 100;
+            const profitPercent = 100 - costPercent;
+
+            barCost.style.width = costPercent + '%';
+            barCost.textContent = `비용(${Math.round(costPercent)}%)`;
+
+            barProfit.style.width = profitPercent + '%';
+            barProfit.textContent = `이익(${Math.round(profitPercent)}%)`;
+
+            // 흑자일 때만 CEO 결정창 보여주기
+            ceoSection.style.display = 'block';
+            resNetIncome.style.color = 'var(--profit-color)';
+            decideMoney.textContent = netIncome.toLocaleString();
+            updateDecision(); // 배당 분배 로직 실행
+
+        } else {
+            // 적자 (손해 봄)
+            barCost.style.display = 'none';
+            barProfit.style.display = 'none';
+            barLoss.style.display = 'block'; // 적자 막대 표시
+
+            ceoSection.style.display = 'none'; // 돈이 없으니 배당 결정 불가
+            resNetIncome.textContent =  netIncome.toLocaleString() + '원 (적자)';
+            resNetIncome.style.color = '#e74c3c';
+        }
+    }
+
+    function updateDecision() {
+        if(netIncome <= 0) return;
+
+        const divPercent = parseInt(splitSlider.value); // 배당 비율
+        const invPercent = 100 - divPercent; // 재투자 비율
+
+        const dividendMoney = netIncome * (divPercent / 100);
+        const investMoney = netIncome * (invPercent / 100);
+
+        valDividend.textContent = formatMoney(Math.floor(dividendMoney));
+        valInvest.textContent = formatMoney(Math.floor(investMoney));
+
+        // 결정 바 색상 비율 조절 (그라데이션)
+        decisionBar.style.background = `linear-gradient(to right, var(--profit-color) ${divPercent}%, var(--invest-color) ${divPercent}%)`;
+
+        // 메시지 출력
+        if(divPercent > 80) {
+            decisionMsg.innerText = "📢 투자자들: '와 사장님 최고! 배당금 잔치다!' (하지만 가게 확장은 못함)";
+        } else if (divPercent < 20) {
+            decisionMsg.innerText = "📢 사장님: '지금은 배고파도 참자. 돈을 모아서 2호점을 내야 해!' (주주들은 시무룩)";
+        } else {
+            decisionMsg.innerText = "⚖️ 사장님: '적당히 나눠 갖고, 적당히 저축하자. 균형이 중요해.'";
+        }
+    }
+
+    // 이벤트 리스너
+    rangePrice.addEventListener('input', updateSimulation);
+    rangeCustomers.addEventListener('input', updateSimulation);
+    rangeCost.addEventListener('input', updateSimulation);
+    splitSlider.addEventListener('input', updateDecision);
+
+    // 초기 실행
+    updateSimulation();
+</script>
+</body>
+</html>

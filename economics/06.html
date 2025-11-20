@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6단계: 20년 후, 내 돈은 얼마가 될까?</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --tech-color: #e74c3c; /* 고위험: 빨강 */
+            --div-color: #27ae60;  /* 배당주: 초록 */
+            --safe-color: #f39c12; /* 안전자산: 노랑 */
+            --line-color: #2c3e50; /* 그래프 선 색 */
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            width: 100%;
+            max-width: 650px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            padding: 25px;
+        }
+
+        /* 1. 차트 영역 */
+        .chart-wrapper {
+            width: 100%;
+            height: 300px;
+            background-color: #fcfcfc;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        svg { width: 100%; height: 100%; }
+
+        /* 기준선 (원금) */
+        .line-base { stroke: #ccc; stroke-width: 1; stroke-dasharray: 5, 5; }
+        /* 내 자산 그래프 */
+        .line-asset {
+            fill: none;
+            stroke: var(--line-color);
+            stroke-width: 3;
+            stroke-linejoin: round;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.2));
+        }
+        /* 점 */
+        .dot { fill: var(--line-color); r: 4; }
+
+        .chart-label { font-size: 0.8rem; fill: #999; }
+
+        /* 2. 자산 설정 카드 */
+        .asset-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            border-left: 5px solid #ccc;
+            background: #f9f9f9;
+        }
+        .row-tech { border-color: var(--tech-color); }
+        .row-div { border-color: var(--div-color); }
+        .row-safe { border-color: var(--safe-color); }
+
+        .asset-info { flex: 1; }
+        .asset-name { font-weight: bold; display: block; font-size: 1rem; }
+        .asset-percent { font-weight: bold; font-size: 1.1rem; margin-left: 10px; min-width: 50px; text-align: right;}
+
+        input[type="range"] { flex: 2; cursor: pointer; margin: 0 10px; }
+
+        /* 3. 하단 컨트롤 */
+        .summary-area {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px dashed #eee;
+        }
+
+        .total-check { font-weight: bold; margin-bottom: 10px; display: block;}
+        .ok { color: var(--div-color); }
+        .no { color: var(--tech-color); }
+
+        .btn-start {
+            background-color: var(--text-color);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+            width: 100%;
+        }
+        .btn-start:active { transform: scale(0.98); }
+        .btn-start:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* 결과 텍스트 */
+        .result-text {
+            margin-top: 15px;
+            font-size: 1rem;
+            line-height: 1.5;
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+<h1 style="text-align:center;">6단계: 20년 후, 내 돈은?</h1>
+<p style="text-align:center; color:#666; margin-bottom:20px;">원금 1,000만 원이 시간(20년)을 만나면 어떻게 될까요?</p>
+
+<div class="container">
+
+    <div class="chart-wrapper">
+        <svg id="chartSvg" viewBox="0 0 600 300">
+            <line x1="0" y1="250" x2="600" y2="250" class="line-base" /> <text x="10" y="245" class="chart-label">원금 (1,000만)</text>
+
+            <path id="assetPath" class="line-asset" d="M 0 250" />
+            <circle id="endDot" class="dot" cx="0" cy="250" style="display:none;"/>
+        </svg>
+    </div>
+
+    <div class="asset-row row-tech">
+        <div class="asset-info">
+            <span class="asset-name">🚀 로켓 바이오</span>
+            <span style="font-size:0.8rem; color:#666;">변동성 큼 (위험)</span>
+        </div>
+        <input type="range" id="slTech" min="0" max="100" value="20" oninput="updateUI()">
+        <span class="asset-percent" id="txtTech">20%</span>
+    </div>
+
+    <div class="asset-row row-div">
+        <div class="asset-info">
+            <span class="asset-name">🛡️ 거북이 식품</span>
+            <span style="font-size:0.8rem; color:#666;">안정적 성장 (보통)</span>
+        </div>
+        <input type="range" id="slDiv" min="0" max="100" value="50" oninput="updateUI()">
+        <span class="asset-percent" id="txtDiv">50%</span>
+    </div>
+
+    <div class="asset-row row-safe">
+        <div class="asset-info">
+            <span class="asset-name">🏦 안전 금고</span>
+            <span style="font-size:0.8rem; color:#666;">현금/이자 (안전)</span>
+        </div>
+        <input type="range" id="slSafe" min="0" max="100" value="30" oninput="updateUI()">
+        <span class="asset-percent" id="txtSafe">30%</span>
+    </div>
+
+    <div class="summary-area">
+        <span id="totalMsg" class="total-check ok">합계: 100% (준비 완료)</span>
+        <button id="btnStart" class="btn-start" onclick="runSimulation()">⏱️ 20년 투자 실행!</button>
+        <div id="resultBox" class="result-text"></div>
+    </div>
+
+</div>
+
+<script>
+    // 요소 가져오기
+    const slTech = document.getElementById('slTech');
+    const slDiv = document.getElementById('slDiv');
+    const slSafe = document.getElementById('slSafe');
+    const txtTech = document.getElementById('txtTech');
+    const txtDiv = document.getElementById('txtDiv');
+    const txtSafe = document.getElementById('txtSafe');
+
+    const totalMsg = document.getElementById('totalMsg');
+    const btnStart = document.getElementById('btnStart');
+    const resultBox = document.getElementById('resultBox');
+
+    const chartSvg = document.getElementById('chartSvg');
+    const assetPath = document.getElementById('assetPath');
+    const endDot = document.getElementById('endDot');
+
+    // 초기 자금 및 설정
+    const initialMoney = 1000; // 1000만원
+    const years = 20;
+
+    // UI 업데이트
+    function updateUI() {
+        const p1 = parseInt(slTech.value);
+        const p2 = parseInt(slDiv.value);
+        const p3 = parseInt(slSafe.value);
+        const sum = p1 + p2 + p3;
+
+        txtTech.innerText = p1 + '%';
+        txtDiv.innerText = p2 + '%';
+        txtSafe.innerText = p3 + '%';
+
+        if (sum === 100) {
+            totalMsg.innerText = "합계: 100% (준비 완료)";
+            totalMsg.className = "total-check ok";
+            btnStart.disabled = false;
+        } else {
+            totalMsg.innerText = `합계: ${sum}% (100%를 맞춰주세요)`;
+            totalMsg.className = "total-check no";
+            btnStart.disabled = true;
+        }
+    }
+
+    // 시뮬레이션 로직
+    function runSimulation() {
+        let money = initialMoney;
+        let history = [initialMoney];
+
+        // 비중
+        const wTech = parseInt(slTech.value) / 100;
+        const wDiv = parseInt(slDiv.value) / 100;
+        const wSafe = parseInt(slSafe.value) / 100;
+
+        // 20년 루프
+        for(let i=0; i<years; i++) {
+            // 각 자산별 수익률 생성 (랜덤)
+            // 로켓: -60% ~ +40% (변동성 큼, 평균 높음)
+            const rTech = (Math.random() * 1.0) - 0.45;
+
+            // 거북이: -10% ~ +20% (변동성 작음)
+            const rDiv = (Math.random() * 0.3) - 0.1;
+
+            // 금고: +2% 고정
+            const rSafe = 0.03;
+
+            // 포트폴리오 통합 수익률 (가중 평균)
+            const totalReturn = (wTech * rTech) + (wDiv * rDiv) + (wSafe * rSafe);
+
+            // 복리 적용
+            money = money * (1 + totalReturn);
+            history.push(money);
+        }
+
+        drawChart(history);
+        showResult(history);
+    }
+
+    // 차트 그리기 함수
+    function drawChart(data) {
+        // Y축 스케일링 (최대값에 따라 그래프 높이 조절)
+        const maxVal = Math.max(...data, initialMoney * 1.5); // 최소한 원금의 1.5배 높이는 확보
+        const minVal = Math.min(...data, initialMoney * 0.5); // 최소한 원금의 0.5배 바닥은 확보
+
+        // SVG 좌표 변환
+        // X: 0 ~ 600
+        // Y: 300 ~ 0 (여백 고려)
+        const getX = (idx) => (idx / years) * 600;
+        // 50px 여백을 두고 매핑
+        const getY = (val) => 300 - 30 - ((val) / (maxVal)) * 250;
+
+        let d = "";
+        data.forEach((val, i) => {
+            const x = getX(i);
+            const y = getY(val);
+            if(i===0) d += `M ${x} ${y}`;
+            else d += ` L ${x} ${y}`;
+        });
+
+        // 애니메이션 효과 (Stroke Dasharray)
+        assetPath.setAttribute('d', d);
+
+        // 마지막 점 위치
+        const lastX = getX(years);
+        const lastY = getY(data[years]);
+        endDot.setAttribute('cx', lastX);
+        endDot.setAttribute('cy', lastY);
+        endDot.style.display = 'block';
+
+        // 원금선 위치 재조정 (Y축 스케일에 맞춰서)
+        const baseLineY = getY(initialMoney);
+        const lineBase = document.querySelector('.line-base');
+        lineBase.setAttribute('y1', baseLineY);
+        lineBase.setAttribute('y2', baseLineY);
+
+        // 원금 텍스트 위치 조정
+        document.querySelector('.chart-label').setAttribute('y', baseLineY - 5);
+    }
+
+    function showResult(data) {
+        const finalMoney = data[years];
+        const profit = finalMoney - initialMoney;
+        const returnRate = (profit / initialMoney) * 100;
+
+        resultBox.style.display = 'block';
+
+        let msg = `<strong>🏁 20년 뒤 결과: ${Math.round(finalMoney).toLocaleString()}만 원</strong><br>`;
+        msg += `(${returnRate > 0 ? '+' : ''}${returnRate.toFixed(1)}% 수익)<br><br>`;
+
+        // 그래프 모양 분석 (교육적 피드백)
+        const wTech = parseInt(slTech.value);
+
+        if (wTech > 60) {
+            msg += "📈 <strong>롤러코스터 코스:</strong><br>그래프가 엄청나게 요동쳤죠? 운이 좋으면 대박이지만, 중간에 반토막 날 때 버티기 힘들었을 거예요.";
+        } else if (parseInt(slSafe.value) > 70) {
+            msg += "🐢 <strong>거북이 코스:</strong><br>그래프가 거의 일직선이네요. 마음은 편하지만, 돈이 많이 불어나진 않았어요.";
+        } else {
+            msg += "✨ <strong>황금 밸런스:</strong><br>그래프가 꾸준히 우상향하는 모습이 보이나요? 이게 바로 복리의 마법을 누리는 가장 좋은 방법이에요.";
+        }
+
+        resultBox.innerHTML = msg;
+    }
+
+    // 초기 실행
+    updateUI();
+</script>
+</body>
+</html>

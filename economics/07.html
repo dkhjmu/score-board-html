@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7단계: 주식 분석가 테스트</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --primary: #34495e;
+            --correct: #27ae60;
+            --wrong: #e74c3c;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 25px;
+            position: relative;
+        }
+
+        /* 1. 데이터 차트 영역 */
+        .data-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 2px solid #eee;
+        }
+
+        .chart-row {
+            display: flex;
+            align-items: flex-end;
+            height: 100px;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .bar {
+            flex: 1;
+            background: #bdc3c7;
+            border-radius: 5px 5px 0 0;
+            position: relative;
+            transition: height 0.5s;
+        }
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .stat-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* 2. 분석 체크리스트 (핵심) */
+        .checklist-section {
+            margin-bottom: 20px;
+        }
+        .question-box {
+            margin-bottom: 15px;
+        }
+        .q-title { font-size: 0.95rem; margin-bottom: 5px; display: block; color: #555; }
+
+        .btn-row { display: flex; gap: 10px; }
+        .check-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .check-btn:hover { background: #f1f1f1; }
+
+        /* 정답/오답 스타일 */
+        .check-btn.selected-correct {
+            background: #d4edda; border-color: var(--correct); color: var(--correct); font-weight: bold;
+        }
+        .check-btn.selected-wrong {
+            background: #f8d7da; border-color: var(--wrong); color: var(--wrong); animation: shake 0.3s;
+        }
+
+        /* 3. 최종 결론 버튼 */
+        .final-decision {
+            display: none; /* 처음엔 숨김 */
+            border-top: 2px dashed #ddd;
+            padding-top: 20px;
+            text-align: center;
+        }
+        .decision-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.1);
+        }
+        .btn-rocket { background: #e74c3c; }
+        .btn-turtle { background: #27ae60; }
+        .decision-btn:active { transform: translateY(4px); box-shadow: none; }
+
+        /* 피드백 메시지 */
+        .feedback-msg {
+            position: absolute;
+            top: 10px; left: 0; width: 100%;
+            text-align: center;
+            font-weight: bold;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>7단계: 주식 분석가 테스트 📝</h1>
+<p style="text-align:center; color:#666; margin-bottom:20px;">데이터를 보고 회사의 상태를 진단하세요.</p>
+
+<div class="container">
+
+    <div class="feedback-msg" id="feedback">잘못된 분석입니다! 다시 보세요.</div>
+
+    <div class="data-section">
+        <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">기업 코드: <span id="bizCode">001</span></div>
+
+        <div class="chart-row">
+            <div class="bar" id="bar1" style="height: 30%;"><span class="bar-label">-2년</span></div>
+            <div class="bar" id="bar2" style="height: 60%;"><span class="bar-label">-1년</span></div>
+            <div class="bar" id="bar3" style="height: 90%;"><span class="bar-label">현재</span></div>
+        </div>
+
+        <div class="stat-info">
+            <div>💰 이익: <span id="txtProfit" style="color:#e74c3c;">적자 (손해)</span></div>
+            <div>🎁 배당: <span id="txtDiv">없음</span></div>
+        </div>
+        <div style="margin-top:10px; font-size:0.9rem; color:#555;">
+            🏭 사업: <span id="txtBiz">AI 로봇 개발</span>
+        </div>
+    </div>
+
+    <div class="checklist-section">
+        <div class="question-box">
+            <span class="q-title">1. 매출(막대 그래프)이 어떤가요?</span>
+            <div class="btn-row">
+                <button class="check-btn" onclick="checkFact(0, 'grow')">📈 급격히 성장 중</button>
+                <button class="check-btn" onclick="checkFact(0, 'flat')">🐢 거의 변화 없음</button>
+            </div>
+        </div>
+
+        <div class="question-box">
+            <span class="q-title">2. 회사가 돈을 벌고 있나요?</span>
+            <div class="btn-row">
+                <button class="check-btn" onclick="checkFact(1, 'loss')">📉 아니요 (적자)</button>
+                <button class="check-btn" onclick="checkFact(1, 'profit')">💰 네 (흑자)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="final-decision" id="finalSection">
+        <h3>🔍 분석 결과</h3>
+        <p style="font-size:0.9rem; margin-bottom:15px;">위 특징들을 종합했을 때,<br>이 회사의 유형은 무엇입니까?</p>
+
+        <button class="decision-btn btn-rocket" onclick="submitAnswer('rocket')">🚀 로켓 (성장주)</button>
+        <button class="decision-btn btn-turtle" onclick="submitAnswer('turtle')">🛡️ 거북이 (가치주)</button>
+    </div>
+
+</div>
+
+<script>
+    // 퀴즈 데이터
+    const quizData = [
+        {
+            bars: ['20%', '50%', '95%'],
+            profitText: "적자 (손해)", profitColor: "#e74c3c",
+            divText: "없음",
+            biz: "신약 개발 (바이오)",
+            facts: ['grow', 'loss'], // 정답 팩트 (성장중, 적자)
+            type: 'rocket',
+            msg: "맞습니다! 매출은 폭발하지만 아직 돈을 못 버는 '로켓' 기업입니다."
+        },
+        {
+            bars: ['90%', '92%', '91%'],
+            profitText: "흑자 (이익)", profitColor: "#27ae60",
+            divText: "연 5% 지급",
+            biz: "라면 판매 (식품)",
+            facts: ['flat', 'profit'], // 정답 팩트 (평평함, 흑자)
+            type: 'turtle',
+            msg: "정답! 성장은 멈췄지만, 돈을 잘 벌어 나눠주는 '거북이' 기업입니다."
+        }
+    ];
+
+    let currentStage = 0;
+    let correctFactsCount = 0; // 맞춘 팩트 개수
+
+    // DOM 요소
+    const bar1 = document.getElementById('bar1');
+    const bar2 = document.getElementById('bar2');
+    const bar3 = document.getElementById('bar3');
+    const txtProfit = document.getElementById('txtProfit');
+    const txtDiv = document.getElementById('txtDiv');
+    const txtBiz = document.getElementById('txtBiz');
+    const bizCode = document.getElementById('bizCode');
+    const finalSection = document.getElementById('finalSection');
+    const feedback = document.getElementById('feedback');
+
+    // 모든 버튼 초기화용
+    const allCheckBtns = document.querySelectorAll('.check-btn');
+
+    function loadQuiz() {
+        const data = quizData[currentStage];
+
+        // UI 초기화
+        correctFactsCount = 0;
+        finalSection.style.display = 'none';
+        allCheckBtns.forEach(btn => {
+            btn.className = 'check-btn'; // 스타일 리셋
+            btn.disabled = false;
+        });
+
+        // 데이터 바인딩
+        bizCode.innerText = "00" + (currentStage + 1);
+        setTimeout(() => {
+            bar1.style.height = data.bars[0];
+            bar2.style.height = data.bars[1];
+            bar3.style.height = data.bars[2];
+        }, 100);
+
+        txtProfit.innerText = data.profitText;
+        txtProfit.style.color = data.profitColor;
+        txtDiv.innerText = data.divText;
+        txtBiz.innerText = data.biz;
+    }
+
+    // 팩트 체크 (분석 단계)
+    function checkFact(qIndex, answer) {
+        const data = quizData[currentStage];
+        const correctAns = data.facts[qIndex];
+        const btn = event.target;
+        const parent = btn.parentNode;
+
+        if (answer === correctAns) {
+            // 정답
+            btn.className = 'check-btn selected-correct';
+            // 같은 줄의 다른 버튼 비활성화
+            const siblings = parent.querySelectorAll('.check-btn');
+            siblings.forEach(b => b.disabled = true);
+
+            correctFactsCount++;
+
+            // 2개 다 맞추면 결론 버튼 활성화
+            if (correctFactsCount === 2) {
+                showFinal();
+            }
+        } else {
+            // 오답 (그래프를 제대로 안 봄)
+            btn.className = 'check-btn selected-wrong';
+            showFeedback("❌ 데이터를 다시 확인하세요!");
+        }
+    }
+
+    function showFeedback(msg) {
+        feedback.innerText = msg;
+        feedback.style.opacity = 1;
+        setTimeout(() => {
+            feedback.style.opacity = 0;
+        }, 1500);
+    }
+
+    function showFinal() {
+        finalSection.style.display = 'block';
+        // 스크롤 내리기
+        setTimeout(() => {
+            finalSection.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    }
+
+    // 최종 결론 제출
+    function submitAnswer(type) {
+        const data = quizData[currentStage];
+        if (type === data.type) {
+            alert(data.msg);
+            // 다음 단계
+            currentStage++;
+            if (currentStage < quizData.length) {
+                loadQuiz();
+            } else {
+                alert("축하합니다! 모든 기업 분석을 마쳤습니다. 이제 실전 투자 준비 완료!");
+                location.reload(); // 다시 시작
+            }
+        } else {
+            alert("아닙니다! 분석한 내용을 다시 생각해보세요.");
+        }
+    }
+
+    // 시작
+    loadQuiz();
+
+</script>
+</body>
+</html>

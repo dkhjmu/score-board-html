@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3단계: 경영권 방어 게임</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --me-color: #4834d4;    /* 나 (파랑) */
+            --other-color: #eb4d4b; /* 투자자 (빨강) */
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; margin-bottom: 30px; text-align: center; }
+
+        .game-board {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+            text-align: center;
+        }
+
+        /* 차트 영역 */
+        .chart-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px auto;
+            border-radius: 50%;
+            background: conic-gradient(
+                    var(--me-color) 0% 50%,
+                    var(--other-color) 50% 100%
+            );
+            transition: background 0.3s;
+            border: 5px solid white;
+            box-shadow: 0 0 0 5px #ddd;
+        }
+
+        /* 차트 중앙 텍스트 */
+        .chart-center {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        /* 슬라이더 영역 */
+        .control-area {
+            background-color: #f1f2f6;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        input[type="range"] { width: 100%; margin: 15px 0; cursor: pointer; }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .me-score { color: var(--me-color); }
+        .other-score { color: var(--other-color); }
+
+        /* 상황 부여 박스 */
+        .scenario-card {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        /* 버튼 */
+        .vote-btn {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .vote-btn:active { transform: scale(0.95); }
+
+        /* 결과 모달 */
+        .result-msg {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-height: 50px;
+        }
+        .win { color: var(--me-color); }
+        .lose { color: var(--other-color); }
+
+    </style>
+</head>
+<body>
+
+<h1>3단계: 누가 회사의 주인일까?</h1>
+<p class="subtitle">지분율 51%를 사수하라! (의결권 전쟁)</p>
+
+<div class="game-board">
+
+    <div class="scenario-card">
+        📢 <strong>[긴급 주주총회]</strong><br>
+        투자자들: "떡볶이에 <strong>민트초코</strong>를 넣읍시다!"<br>
+        나(사장): "절대 안 돼! 맛없어!"
+    </div>
+
+    <div class="chart-container" id="pieChart">
+        <div class="chart-center">
+            <span style="font-size:0.8rem; color:#888;">나의 지분</span>
+            <span id="myPercentDisplay" style="font-size:1.5rem; color:var(--me-color);">50%</span>
+        </div>
+    </div>
+
+    <div class="control-area">
+        <div class="status-row">
+            <span class="me-score">😎 나 (사장)</span>
+            <span class="other-score">😈 투자자들</span>
+        </div>
+        <input type="range" id="shareSlider" min="0" max="100" value="50">
+        <p style="font-size:0.9rem; color:#666; margin:0;">
+            슬라이더를 움직여 지분을 조절하세요.
+        </p>
+    </div>
+
+    <button class="vote-btn" onclick="vote()">결판 내기 (투표!)</button>
+
+    <div id="resultBox" class="result-msg"></div>
+</div>
+
+<script>
+    const slider = document.getElementById('shareSlider');
+    const pieChart = document.getElementById('pieChart');
+    const myPercentDisplay = document.getElementById('myPercentDisplay');
+    const resultBox = document.getElementById('resultBox');
+
+    // 차트 및 텍스트 업데이트 함수
+    function updateChart() {
+        const myShare = parseInt(slider.value);
+        const otherShare = 100 - myShare;
+
+        // CSS Conic Gradient로 차트 그리기
+        pieChart.style.background = `conic-gradient(
+                var(--me-color) 0% ${myShare}%,
+                var(--other-color) ${myShare}% 100%
+            )`;
+
+        myPercentDisplay.textContent = myShare + '%';
+
+        // 결과창 초기화 (조작 중에는 결과 지움)
+        resultBox.innerHTML = "";
+    }
+
+    // 투표 로직
+    function vote() {
+        const myShare = parseInt(slider.value);
+
+        if (myShare > 50) {
+            // 승리
+            resultBox.innerHTML = `
+                    <span class="win">🎉 방어 성공! (과반수 확보)</span><br>
+                    "내 지분이 ${myShare}%라서 내 맘대로 할 거야!<br>민트초코 떡볶이는 없다!"
+                `;
+        } else if (myShare === 50) {
+            // 무승부
+            resultBox.innerHTML = `
+                    <span style="color:#f39c12;">⚠️ 팽팽한 대립! (50 대 50)</span><br>
+                    "결론이 안 나고 싸움만 계속됩니다..."
+                `;
+        } else {
+            // 패배
+            resultBox.innerHTML = `
+                    <span class="lose">😭 방어 실패... (경영권 박탈)</span><br>
+                    "투자자 지분이 더 많아서 졌어...<br>오늘부터 우리 가게는 민트초코 전문점 ㅠㅠ"
+                `;
+        }
+    }
+
+    // 이벤트 리스너
+    slider.addEventListener('input', updateChart);
+
+    // 초기 실행
+    updateChart();
+</script>
+</body>
+</html>

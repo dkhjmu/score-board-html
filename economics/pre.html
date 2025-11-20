@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프롤로그: 위대한 CEO의 탄생</title>
+    <style>
+        :root {
+            --primary: #6C5CE7;
+            --bg: #DFE6E9;
+            --text: #2D3436;
+        }
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* 1. 회사 설립 화면 */
+        #setupScreen {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        input {
+            width: 90%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+        button.start-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        /* 2. 장사 화면 (게임) */
+        #gameScreen {
+            display: none; /* 처음엔 숨김 */
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .money-box {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00b894;
+            margin: 20px 0;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 0 #ddd;
+        }
+
+        .click-area {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .click-btn {
+            background: #fdcb6e;
+            border: none;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            font-size: 4rem;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #e1b12c;
+            transition: transform 0.1s;
+            user-select: none;
+        }
+        .click-btn:active {
+            transform: scale(0.95) translateY(4px);
+            box-shadow: 0 4px 0 #e1b12c;
+        }
+
+        .order-gauge {
+            width: 100%;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .order-fill {
+            height: 100%;
+            width: 10%;
+            background: #ff7675;
+            transition: width 0.5s;
+        }
+        .gauge-label {
+            font-size: 0.9rem;
+            color: #636e72;
+            margin-bottom: 5px;
+            display: block;
+            text-align: left;
+        }
+
+        /* 3. 팝업 (스토리 진행) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            text-align: center;
+            animation: popIn 0.3s ease;
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .next-btn {
+            background: #d63031;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="setupScreen">
+    <h1>🚩 창업 신고서</h1>
+    <p>멋진 회사를 세워보세요!</p>
+    <input type="text" id="companyNameInput" placeholder="회사 이름 (예: 로켓 버거)" value="슈퍼 떡볶이">
+    <input type="text" id="productNameInput" placeholder="파는 물건 (예: 햄버거)" value="떡볶이">
+    <button class="start-btn" onclick="startGame()">장사 시작하기!</button>
+</div>
+
+<div id="gameScreen">
+    <h2>🏠 <span id="displayCompanyName"></span> 1호점 (차고)</h2>
+
+    <div class="money-box">
+        매출: <span id="score">0</span>원
+    </div>
+
+    <div class="click-area">
+        <button class="click-btn" onclick="sellProduct()">🥘</button>
+        <p><span id="displayProductName"></span> 하나 팔기 (클릭!)</p>
+    </div>
+
+    <div>
+        <span class="gauge-label">🔥 주문 밀리는 속도 (주문 폭주!)</span>
+        <div class="order-gauge">
+            <div class="order-fill" id="orderBar"></div>
+        </div>
+    </div>
+</div>
+
+<div id="storyModal" class="modal">
+    <div class="modal-content">
+        <h1>😱 큰일 났다!</h1>
+        <p style="font-size: 1.1rem; line-height: 1.6;">
+            주문이 너무 많아서<br>
+            손으로 만드는 건 한계가 왔어요!<br><br>
+            <strong>"자동 요리 기계"</strong>를 사야 하는데<br>
+            가격이 무려 <span style="color:#d63031; font-size:1.5rem; font-weight:bold;">1억 원</span>?!
+        </p>
+        <p style="color:#666; font-size: 0.9rem;">(지금 내 돈: <span id="finalMoney">0</span>원)</p>
+        <hr>
+        <p>어디서 이 큰돈을 구하지?</p>
+        <button class="next-btn" onclick="goToNextStage()">돈 구하러 가기 (다음 단계)</button>
+    </div>
+</div>
+
+<script>
+    let money = 0;
+    let orderLevel = 10;
+    const goalMoney = 50000; // 5만원 벌면 이벤트 발생 (테스트용)
+
+    function startGame() {
+        const comName = document.getElementById('companyNameInput').value;
+        const prodName = document.getElementById('productNameInput').value;
+
+        if(!comName || !prodName) {
+            alert("이름을 모두 입력해주세요!");
+            return;
+        }
+
+        document.getElementById('displayCompanyName').innerText = comName;
+        document.getElementById('displayProductName').innerText = prodName;
+
+        document.getElementById('setupScreen').style.display = 'none';
+        document.getElementById('gameScreen').style.display = 'block';
+
+        // 주문 게이지가 자동으로 차오르는 효과 (긴장감 조성)
+        simulateOrders();
+    }
+
+    function sellProduct() {
+        money += 5000; // 한 번 클릭에 5,000원
+        document.getElementById('score').innerText = money.toLocaleString();
+
+        // 클릭 효과 (간단한 애니메이션)
+        const btn = document.querySelector('.click-btn');
+        btn.innerText = "💰";
+        setTimeout(() => btn.innerText = "🥘", 100);
+
+        // 일정 금액 이상 벌면 스토리 진행
+        if (money >= goalMoney) {
+            showStoryModal();
+        }
+    }
+
+    function simulateOrders() {
+        const bar = document.getElementById('orderBar');
+        setInterval(() => {
+            if (orderLevel < 95) {
+                orderLevel += 1;
+                bar.style.width = orderLevel + '%';
+            }
+        }, 100);
+    }
+
+    function showStoryModal() {
+        document.getElementById('finalMoney').innerText = money.toLocaleString();
+        document.getElementById('storyModal').style.display = 'flex';
+    }
+
+    function goToNextStage() {
+        alert("자금 조달(0단계) 페이지로 이동합니다! (실제 구현 시 href 링크 연결)");
+        // location.href = "stage0_funding.html";
+    }
+</script>
+</body>
+</html>

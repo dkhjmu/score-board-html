@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5단계: 성장률과 주가 (Turn-based)</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --value-color: #27ae60; /* 가치: 초록 */
+            --price-color: #e74c3c; /* 가격: 빨강 */
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; margin-bottom: 20px; text-align: center; }
+
+        .game-container {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            padding: 25px;
+        }
+
+        /* 차트 영역 */
+        .chart-wrapper {
+            width: 100%;
+            height: 300px;
+            background-color: #fcfcfc;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        svg { width: 100%; height: 100%; }
+
+        .line-value {
+            fill: none;
+            stroke: var(--value-color);
+            stroke-width: 3;
+            stroke-dasharray: 5, 5; /* 점선 */
+        }
+
+        .line-price {
+            fill: none;
+            stroke: var(--price-color);
+            stroke-width: 3;
+            stroke-linejoin: round;
+        }
+
+        .dot { r: 4; }
+        .dot-value { fill: var(--value-color); }
+        .dot-price { fill: var(--price-color); }
+
+        /* 컨트롤 패널 */
+        .control-panel {
+            background-color: #f1f2f6;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #dcdde1;
+            outline: none;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .btn-next {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--text-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn-next:active { transform: scale(0.98); }
+        .btn-next:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        /* 상태 표시 */
+        .status-board {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        .stat-item b { font-size: 1.1rem; display: block; }
+        .val-text { color: var(--value-color); }
+        .pri-text { color: var(--price-color); }
+
+        .news-ticker {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            min-height: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>5단계: 주인과 강아지 (실전)</h1>
+<p class="subtitle">성장률을 정하고 '다음 해'로 넘겨보세요.</p>
+
+<div class="game-container">
+
+    <div class="status-board">
+        <div class="stat-item val-text">
+            주인 (기업가치)
+            <b id="dispValue">10,000원</b>
+        </div>
+        <div class="stat-item pri-text">
+            강아지 (주가)
+            <b id="dispPrice">10,000원</b>
+        </div>
+        <div class="stat-item">
+            현재
+            <b id="dispYear">0년차</b>
+        </div>
+    </div>
+
+    <div id="newsBox" class="news-ticker">투자를 시작합니다! 성장률을 정해주세요.</div>
+
+    <div class="chart-wrapper">
+        <svg id="chartSvg" viewBox="0 0 600 300">
+            <line x1="0" y1="150" x2="600" y2="150" stroke="#eee" stroke-width="1"/>
+
+            <path id="pathValue" class="line-value" d="M0 150" />
+            <path id="pathPrice" class="line-price" d="M0 150" />
+
+            <circle id="dotValue" class="dot dot-value" cx="0" cy="150" />
+            <circle id="dotPrice" class="dot dot-price" cx="0" cy="150" />
+        </svg>
+    </div>
+
+    <div class="control-panel">
+        <div class="slider-header">
+            <label>📈 올해 성장 목표</label>
+            <span id="growthDisplay" style="color:#2980b9;">+10% (성장)</span>
+        </div>
+
+        <input type="range" id="growthSlider" min="-10" max="30" step="1" value="3">
+
+        <button id="btnNext" class="btn-next" onclick="nextYear()">📅 1년 보내기 (Next)</button>
+    </div>
+
+</div>
+
+<script>
+    // 상태 변수
+    let year = 0;
+    const maxYears = 30;
+
+    let currentValue = 10000; // 시작 가치
+    let currentPrice = 10000; // 시작 주가
+
+    // 데이터 저장 배열 (차트 그리기용)
+    let historyValue = [10000];
+    let historyPrice = [10000];
+
+    // DOM 요소
+    const growthSlider = document.getElementById('growthSlider');
+    const growthDisplay = document.getElementById('growthDisplay');
+    const btnNext = document.getElementById('btnNext');
+    const newsBox = document.getElementById('newsBox');
+
+    const dispValue = document.getElementById('dispValue');
+    const dispPrice = document.getElementById('dispPrice');
+    const dispYear = document.getElementById('dispYear');
+
+    const chartSvg = document.getElementById('chartSvg');
+    const pathValue = document.getElementById('pathValue');
+    const pathPrice = document.getElementById('pathPrice');
+    const dotValue = document.getElementById('dotValue');
+    const dotPrice = document.getElementById('dotPrice');
+
+    // 슬라이더 값 표시 업데이트
+    growthSlider.addEventListener('input', function() {
+        const val = parseInt(this.value);
+        if(val > 0) {
+            growthDisplay.innerText = `+${val}% (성장)`;
+            growthDisplay.style.color = '#e74c3c'; // 빨강 (상승 느낌)
+        } else if (val < 0) {
+            growthDisplay.innerText = `${val}% (역성장)`;
+            growthDisplay.style.color = '#2980b9'; // 파랑 (하락 느낌)
+        } else {
+            growthDisplay.innerText = `0% (유지)`;
+            growthDisplay.style.color = '#333';
+        }
+    });
+
+    // 콤마 포맷
+    function formatMoney(num) {
+        return Math.round(num).toLocaleString();
+    }
+
+    // [핵심] 다음 해로 넘어가기
+    function nextYear() {
+        if (year >= maxYears) {
+            alert("30년 투자가 끝났습니다! 결과를 확인해보세요.");
+            return;
+        }
+
+        year++;
+
+        // 1. 사용자가 정한 성장률 적용 (가치 변화)
+        const growthRate = parseInt(growthSlider.value) / 100;
+        currentValue = currentValue * (1 + growthRate);
+
+        // 2. 시장의 광기 적용 (주가 변화)
+        // 주가는 가치를 따라가려고 하지만(0.7), 랜덤 노이즈(0.3)가 섞임
+        // 노이즈: -20% ~ +20% 사이의 랜덤 변동
+        const noise = (Math.random() - 0.5) * 0.4;
+
+        // 목표 주가 = 현재 가치 * (1 + 노이즈)
+        // 하지만 한 번에 다 반영되지 않고, 이전 주가와의 관성도 있음
+        const targetPrice = currentValue * (1 + noise);
+        currentPrice = currentPrice + (targetPrice - currentPrice) * 0.8; // 80% 반영
+
+        // 뉴스 생성 (노이즈에 따른 텍스트)
+        if (noise > 0.15) {
+            newsBox.innerText = `🔥 [뉴스] 시장이 흥분했습니다! 주가가 가치보다 훨씬 비싸게 거래됩니다.`;
+            newsBox.style.background = "#ffcdd2"; // 붉은색 배경
+        } else if (noise < -0.15) {
+            newsBox.innerText = `❄️ [뉴스] 공포감이 돕니다. 회사는 튼튼한데 주가만 떨어지네요. (저가 매수 기회?)`;
+            newsBox.style.background = "#c5cae9"; // 푸른색 배경
+        } else {
+            newsBox.innerText = `🍃 [뉴스] 시장이 평온합니다. 주가가 기업 가치를 잘 따라가고 있네요.`;
+            newsBox.style.background = "#f0f2f5";
+        }
+
+        // 데이터 저장
+        historyValue.push(currentValue);
+        historyPrice.push(currentPrice);
+
+        // UI 업데이트
+        updateUI();
+        drawChart();
+    }
+
+    function updateUI() {
+        dispValue.innerText = formatMoney(currentValue) + '원';
+        dispPrice.innerText = formatMoney(currentPrice) + '원';
+        dispYear.innerText = year + '년차';
+
+        if (year >= maxYears) {
+            btnNext.innerText = "투자 종료 (새로고침하세요)";
+            btnNext.disabled = true;
+        }
+    }
+
+    function drawChart() {
+        // 1. 스케일링 (화면에 꽉 차게 보이기 위해 최대/최소값 계산)
+        const allValues = [...historyValue, ...historyPrice];
+        const minVal = Math.min(...allValues) * 0.9; // 여백 10%
+        const maxVal = Math.max(...allValues) * 1.1; // 여백 10%
+
+        // SVG 좌표 변환 함수
+        // X축: 0 ~ 600 (20년 기준)
+        // Y축: 300 ~ 0 (값 기준, SVG는 위가 0이므로 반전 필요)
+
+        const getX = (index) => (index / maxYears) * 600;
+        const getY = (val) => 300 - ((val - minVal) / (maxVal - minVal)) * 300;
+
+        // 선 그리기 (Path 데이터 생성)
+        let dVal = "", dPri = "";
+
+        historyValue.forEach((val, i) => {
+            const x = getX(i);
+            const y = getY(val);
+            if (i === 0) dVal += `M ${x} ${y}`;
+            else dVal += ` L ${x} ${y}`;
+        });
+
+        historyPrice.forEach((val, i) => {
+            const x = getX(i);
+            const y = getY(val);
+            if (i === 0) dPri += `M ${x} ${y}`;
+            else dPri += ` L ${x} ${y}`;
+        });
+
+        pathValue.setAttribute('d', dVal);
+        pathPrice.setAttribute('d', dPri);
+
+        // 현재 위치 점 찍기 (마지막 데이터)
+        const lastIdx = historyValue.length - 1;
+        const lastX = getX(lastIdx);
+
+        dotValue.setAttribute('cx', lastX);
+        dotValue.setAttribute('cy', getY(historyValue[lastIdx]));
+
+        dotPrice.setAttribute('cx', lastX);
+        dotPrice.setAttribute('cy', getY(historyPrice[lastIdx]));
+    }
+
+    // 초기값 세팅
+    growthDisplay.innerText = "+10% (성장)";
+</script>
+</body>
+</html>

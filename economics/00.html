@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0단계: 회사는 왜 주식을 발행할까? (Valuation 추가)</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --bank-color: #e74c3c;
+            --stock-color: #2ecc71;
+            --valuation-color: #8e44ad; /* 기업가치: 보라색 */
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; text-align: center; }
+
+        .bubble {
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            position: relative;
+            text-align: center;
+        }
+        .bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px; left: 50%;
+            margin-left: -10px;
+            border-width: 10px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            flex: 1;
+            min-width: 300px;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-top: 5px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-loan { border-top-color: var(--bank-color); }
+        .card-stock { border-top-color: var(--stock-color); }
+
+        h2 { margin-top: 0; font-size: 1.5rem; }
+        .icon { font-size: 3rem; display: block; margin: 10px 0; text-align: center; }
+
+        .scenario-box {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            min-height: 60px;
+        }
+
+        /* 슬라이더 영역 */
+        .control-area {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f1f2f6;
+            border-radius: 15px;
+        }
+
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+
+        /* 결과 텍스트들 */
+        .result-group {
+            margin-top: auto; /* 카드가 길어져도 하단 정렬 */
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .result-value { font-weight: bold; font-size: 1.1rem; }
+
+        .highlight-bad { color: var(--bank-color); }
+        .highlight-good { color: var(--stock-color); }
+        .highlight-val { color: var(--valuation-color); font-size: 1.2rem; }
+
+        /* 기업가치 박스 (강조) */
+        .valuation-box {
+            background-color: #f3e5f5;
+            border: 2px solid var(--valuation-color);
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .valuation-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; display: block;}
+
+        .select-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-loan { background-color: var(--bank-color); }
+        .btn-stock { background-color: var(--stock-color); }
+
+    </style>
+</head>
+<body>
+
+<div class="bubble">
+    "사장님! 2호점을 내려면 <strong>1억 원</strong>이 필요해요. 어떻게 구할까요?"
+</div>
+
+<div class="container">
+    <div class="card card-loan">
+        <h2>🏦 방법 A: 은행 대출</h2>
+        <span class="icon">😰</span>
+        <div class="scenario-box">
+            은행에서 돈을 빌립니다. 회사는 100% 내 것이지만, 이자를 내야 합니다.
+        </div>
+
+        <div class="control-area">
+            <label>금리(이자율): <span id="rateDisplay">5</span>%</label>
+            <input type="range" id="loanRate" min="2" max="10" value="5" step="1">
+        </div>
+
+        <div class="result-group">
+            <div class="result-row">
+                <span>매년 갚을 이자:</span>
+                <span class="result-value highlight-bad" id="interestCost">500만 원</span>
+            </div>
+            <p style="font-size:0.8rem; color:#999; text-align: center;">(망해도 갚아야 함!)</p>
+            <button class="select-btn btn-loan" onclick="selectOption('loan')">대출 받기</button>
+        </div>
+    </div>
+
+    <div class="card card-stock">
+        <h2>🤝 방법 B: 주식 발행</h2>
+        <span class="icon">😎</span>
+        <div class="scenario-box">
+            친구에게 1억을 받고 지분(%)을 줍니다. 이자는 없지만 회사를 나눠야 합니다.
+        </div>
+
+        <div class="control-area">
+            <label>나눠줄 지분: <span id="equityDisplay">20</span>%</label>
+            <input type="range" id="stockEquity" min="5" max="50" value="20" step="5">
+        </div>
+
+        <div class="valuation-box">
+            <span class="valuation-label">현재 우리 회사의 가치 (몸값)</span>
+            <span class="result-value highlight-val" id="companyValuation">5억 원</span>
+        </div>
+
+        <div class="result-group">
+            <div class="result-row">
+                <span>나중에 줄 배당금:</span>
+                <span class="result-value highlight-good" id="profitShare">20억 원</span>
+            </div>
+            <p style="font-size:0.8rem; color:#999; text-align: center;">(회사가 100억이 되었을 때)</p>
+            <button class="select-btn btn-stock" onclick="selectOption('stock')">주식 발행하기</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // [대출 로직]
+    const loanRate = document.getElementById('loanRate');
+    const rateDisplay = document.getElementById('rateDisplay');
+    const interestCost = document.getElementById('interestCost');
+
+    loanRate.addEventListener('input', function() {
+        const rate = this.value;
+        rateDisplay.textContent = rate;
+        const interest = 100000000 * (rate / 100); // 1억 * 이자율
+        interestCost.textContent = (interest / 10000).toLocaleString() + '만 원';
+    });
+
+    // [주식 로직]
+    const stockEquity = document.getElementById('stockEquity');
+    const equityDisplay = document.getElementById('equityDisplay');
+    const profitShare = document.getElementById('profitShare');
+    const companyValuation = document.getElementById('companyValuation');
+
+    // 숫자 포맷팅 (억, 만 단위 변환)
+    function formatKoreanMoney(amount) {
+        if (amount >= 100000000) {
+            return (amount / 100000000).toFixed(1).replace('.0', '') + '억 원';
+        } else {
+            return (amount / 10000).toLocaleString() + '만 원';
+        }
+    }
+
+    function updateStockInfo() {
+        const equity = parseInt(stockEquity.value);
+        equityDisplay.textContent = equity;
+
+        // 1. 기업 가치 계산 (Valuation)
+        // 공식: 투자금(1억) / (지분율 / 100)
+        // 예: 1억 투자받고 10% 주면 -> 기업가치는 10억
+        const investment = 100000000;
+        const valuation = investment / (equity / 100);
+
+        companyValuation.textContent = formatKoreanMoney(valuation);
+
+        // 2. 미래 배당금 계산
+        // 미래가치 100억 가정 * 지분율
+        const futureValue = 10000000000;
+        const share = futureValue * (equity / 100);
+        profitShare.textContent = formatKoreanMoney(share);
+    }
+
+    stockEquity.addEventListener('input', updateStockInfo);
+
+    // 초기 실행
+    updateStockInfo();
+
+    // 선택 버튼
+    function selectOption(type) {
+        if(type === 'loan') {
+            alert("은행: '매년 이자 꼬박꼬박 내세요! 안 그러면 압류입니다.' 😱");
+        } else {
+            alert(`투자자: '좋아! 너의 회사를 ${companyValuation.textContent}짜리로 인정해주지. 여기 1억 원 투자금이야!' 😎`);
+        }
+    }
+</script>
+</body>
+</html>

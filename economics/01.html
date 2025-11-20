@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEO 대시보드: 기업 가치와 주가</title>
+    <style>
+        /* 1. 스타일 설정 */
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --accent-color: #4A90E2;
+            --text-color: #2c3e50;
+            --up-color: #e74c3c;   /* 주가 상승 (한국 기준 빨강) */
+            --down-color: #0984e3; /* 주가 하락 (한국 기준 파랑) */
+        }
+
+        body {
+            font-family: 'Segoe UI', AppleSDGothicNeo-Regular, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .dashboard {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 1.8rem; }
+        p.desc { color: #7f8c8d; font-size: 0.95rem; margin-bottom: 40px; }
+
+        /* 입력 필드 스타일 */
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #34495e;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1rem;
+            border: 2px solid #dfe6e9;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
+
+        .unit {
+            position: absolute;
+            right: 15px;
+            color: #95a5a6;
+            font-weight: bold;
+        }
+
+        /* 구분선 */
+        .divider {
+            height: 1px;
+            background-color: #dfe6e9;
+            margin: 30px 0;
+            position: relative;
+        }
+        .divider::after {
+            content: "⬇️ 나누기 (÷)";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            padding: 0 10px;
+            color: #7f8c8d;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        /* 결과(주가) 섹션 */
+        .price-section {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .price-label {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .price-display {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 컨트롤 버튼 */
+        .control-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:hover { background-color: rgba(0,0,0,0.05); }
+        .btn-up { color: var(--up-color); }
+        .btn-down { color: var(--down-color); }
+
+        /* 시각적 피드백 (기업 크기) */
+        .visual-bar-container {
+            margin-top: 30px;
+            height: 10px;
+            background-color: #dfe6e9;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .visual-bar {
+            height: 100%;
+            width: 50%; /* 초기값 */
+            background: linear-gradient(90deg, #74b9ff, #0984e3);
+            transition: width 0.5s ease;
+        }
+        .visual-text {
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: #0984e3;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h1>🏢 기업 가치 시뮬레이터</h1>
+    <p class="desc">주가가 오르면 회사 전체 가치는 어떻게 될까?</p>
+
+    <div class="input-group">
+        <label>1. 기업 전체 가치 (시가총액)</label>
+        <div class="input-wrapper">
+            <input type="number" id="marketCap" value="100000000" step="1000000">
+            <span class="unit">원</span>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>2. 발행된 주식 수 (조각 개수)</label>
+        <div class="input-wrapper">
+            <input type="number" id="totalShares" value="10000">
+            <span class="unit">주</span>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="price-section">
+        <span class="price-label">= 1주당 가격</span>
+        <div class="price-display">
+            <button class="control-btn btn-down" onclick="changePrice(-1)">▼</button>
+            <span id="sharePrice">10,000</span>
+            <button class="control-btn btn-up" onclick="changePrice(1)">▲</button>
+        </div>
+        <div style="font-size: 0.9rem; color:#999; margin-top:5px;">원</div>
+    </div>
+
+    <div class="visual-bar-container">
+        <div id="companySizeBar" class="visual-bar"></div>
+    </div>
+    <div class="visual-text">회사의 크기 변화</div>
+
+</div>
+
+<script>
+    // 요소 가져오기
+    const marketCapInput = document.getElementById('marketCap');
+    const totalSharesInput = document.getElementById('totalShares');
+    const sharePriceDisplay = document.getElementById('sharePrice');
+    const companySizeBar = document.getElementById('companySizeBar');
+
+    // 상태 변수
+    let currentMarketCap = 100000000; // 1억 원
+    let currentShares = 10000;        // 1만 주
+    let currentPrice = 10000;         // 1만 원
+
+    // 숫자 포맷 (콤마)
+    function formatNum(num) {
+        return Math.round(num).toLocaleString();
+    }
+
+    // 1. [입력 -> 계산] 위에서 값을 입력했을 때 가격 계산
+    function calculatePrice() {
+        currentMarketCap = parseFloat(marketCapInput.value) || 0;
+        currentShares = parseFloat(totalSharesInput.value) || 1;
+
+        // 0으로 나누기 방지
+        if (currentShares <= 0) currentShares = 1;
+
+        currentPrice = currentMarketCap / currentShares;
+        updateDisplay();
+    }
+
+    // 2. [조작 -> 역계산] 화살표로 가격을 바꿀 때 기업가치 역계산
+    function changePrice(direction) {
+        // 변화폭 설정 (현재 가격의 5% 씩 움직이거나 최소 100원 단위)
+        let step = currentPrice * 0.05;
+        if (step < 100) step = 100;
+        step = Math.round(step / 100) * 100; // 100원 단위 절삭
+
+        if (direction > 0) {
+            currentPrice += step;
+        } else {
+            currentPrice -= step;
+            if (currentPrice < 0) currentPrice = 0;
+        }
+
+        // 핵심 로직: 가격이 변하면 -> 기업 가치가 변한다 (주식 수는 고정)
+        currentMarketCap = currentPrice * currentShares;
+
+        // 입력창 값도 자동으로 업데이트 (역방향 상호작용 시각화)
+        marketCapInput.value = currentMarketCap;
+
+        updateDisplay();
+        highlightChange(direction);
+    }
+
+    // 화면 업데이트 및 시각화
+    function updateDisplay() {
+        sharePriceDisplay.textContent = formatNum(currentPrice);
+
+        // 하단 바 그래프 애니메이션 (기준값 2억원을 100%로 잡고 변화량 표시)
+        const baseLine = 200000000;
+        let percentage = (currentMarketCap / baseLine) * 100;
+        if (percentage > 100) percentage = 100;
+        companySizeBar.style.width = percentage + '%';
+    }
+
+    // 가격 변동 시 색상 효과
+    function highlightChange(direction) {
+        const color = direction > 0 ? 'var(--up-color)' : 'var(--down-color)';
+        sharePriceDisplay.style.color = color;
+        setTimeout(() => {
+            sharePriceDisplay.style.color = '#2c3e50';
+        }, 300);
+    }
+
+    // 이벤트 리스너
+    marketCapInput.addEventListener('input', calculatePrice);
+    totalSharesInput.addEventListener('input', calculatePrice);
+
+    // 초기화
+    calculatePrice();
+
+</script>
+</body>
+</html>
