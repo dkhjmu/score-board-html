@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEO 경제 마스터 클래스 (통합본)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #ecf0f1;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Jua', sans-serif;
+            background-color: var(--bg);
+        }
+
+        /* 상단 헤더 */
+        .header {
+            height: 60px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 10;
+        }
+
+        .title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* 진행바 */
+        .progress-container {
+            flex: 1;
+            margin: 0 20px;
+            background: #eee;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            max-width: 400px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .stage-info {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        /* 메인 컨텐츠 (iframe) */
+        .main-content {
+            height: calc(100% - 120px);
+            /* 헤더 60 + 푸터 60 */
+            width: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        /* 하단 네비게이션 */
+        .footer {
+            height: 60px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+            position: relative;
+            z-index: 10;
+        }
+
+        .nav-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Jua', sans-serif;
+        }
+
+        .btn-prev {
+            background: #bdc3c7;
+            color: white;
+        }
+
+        .btn-prev:hover {
+            background: #95a5a6;
+        }
+
+        .btn-next {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 0 #2980b9;
+        }
+
+        .btn-next:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #2980b9;
+        }
+
+        .btn-next:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #2980b9;
+        }
+
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+    </style>
+    <!-- 폰트 로드 (각 iframe 내부에서도 쓰지만, 여기서도 통일감을 위해) -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="title">🎓 CEO 경제 마스터</div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="stage-info" id="stageInfo">1 / 10</div>
+    </div>
+
+    <iframe id="gameFrame" class="main-content" src=""></iframe>
+
+    <div class="footer">
+        <button class="nav-btn btn-prev" id="btnPrev" onclick="prevStage()">◀ 이전</button>
+        <button class="nav-btn btn-next" id="btnNext" onclick="nextStage()">다음 단계 ▶</button>
+    </div>
+
+    <script>
+        // 스테이지 파일 목록 (순서대로)
+        const stages = [
+            'pre.html',    // 프롤로그
+            '00.html',     // 0단계
+            '01.html',     // 1단계
+            '03.html',     // 3단계 (2단계 누락됨)
+            '03-2.html',   // 3단계 심화
+            '04.html',     // 4단계
+            '05.html',     // 5단계
+            '06.html',     // 6단계
+            '07.html',     // 7단계
+            '08.html'      // 8단계
+        ];
+
+        let currentIndex = 0;
+
+        const frame = document.getElementById('gameFrame');
+        const progressBar = document.getElementById('progressBar');
+        const stageInfo = document.getElementById('stageInfo');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+
+        function loadStage(index) {
+            if (index < 0 || index >= stages.length) return;
+
+            currentIndex = index;
+            frame.src = stages[currentIndex];
+
+            updateUI();
+        }
+
+        function updateUI() {
+            // 진행바 업데이트
+            const progress = ((currentIndex + 1) / stages.length) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            // 텍스트 업데이트
+            stageInfo.innerText = `${currentIndex + 1} / ${stages.length}`;
+
+            // 버튼 상태 업데이트
+            btnPrev.disabled = (currentIndex === 0);
+            btnPrev.classList.toggle('btn-disabled', currentIndex === 0);
+
+            if (currentIndex === stages.length - 1) {
+                btnNext.innerText = "완료 🎉";
+                btnNext.disabled = true;
+                btnNext.classList.add('btn-disabled');
+            } else {
+                btnNext.innerText = "다음 단계 ▶";
+                btnNext.disabled = false;
+                btnNext.classList.remove('btn-disabled');
+            }
+        }
+
+        function nextStage() {
+            if (currentIndex < stages.length - 1) {
+                loadStage(currentIndex + 1);
+            }
+        }
+
+        function prevStage() {
+            if (currentIndex > 0) {
+                loadStage(currentIndex - 1);
+            }
+        }
+
+        // 초기 로드
+        loadStage(0);
+
+    </script>
+</body>
+
+</html>
