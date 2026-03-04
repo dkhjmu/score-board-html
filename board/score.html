@@ -27,6 +27,53 @@
             line-height: 1.5;
         }
 
+        .add-game-area {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 12px;
+            background: white;
+            padding: 10px 16px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            width: 98%;
+            max-width: 1200px;
+            box-sizing: border-box;
+        }
+
+        .add-game-area input[type="text"] {
+            padding: 7px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            width: 140px;
+        }
+
+        .add-game-area select {
+            padding: 7px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            background: white;
+        }
+
+        .btn-add {
+            padding: 7px 18px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95em;
+            box-shadow: 0 3px 0 #1e8449;
+        }
+
+        .btn-add:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
         table {
             border-collapse: collapse;
             background: white;
@@ -58,6 +105,22 @@
             display: block;
             color: #f1c40f;
             font-weight: bold;
+        }
+
+        .btn-delete-game {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .btn-delete-game:hover {
+            background: rgba(231, 76, 60, 0.2);
         }
 
         .player-row:hover {
@@ -125,6 +188,16 @@
             font-size: 0.75em;
             color: #95a5a6;
         }
+
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
     </style>
 </head>
 
@@ -133,76 +206,94 @@
     <h1>🏆 워크샵 챔피언십 실시간 스코어</h1>
     <div class="desc">
         1. 게임 완료 후 상단 <b>[진행완료]</b>를 체크하세요.<br>
-        2. 실제 점수를 입력(젝스님트는 낮은순)하고 하단 <b>[결과 업데이트]</b> 버튼을 누르세요.
+        2. 실제 점수를 입력하고 하단 <b>[결과 업데이트]</b> 버튼을 누르세요.
+    </div>
+
+    <div class="add-game-area">
+        <strong>게임 추가:</strong>
+        <input type="text" id="newGameName" placeholder="게임 이름" />
+        <select id="newGameOrder">
+            <option value="high">높은순 (많을수록 유리)</option>
+            <option value="low">낮은순 (적을수록 유리)</option>
+        </select>
+        <button class="btn-add" onclick="addGame()">+ 추가</button>
     </div>
 
     <table id="mainTable">
-        <thead>
-            <tr>
-                <th>순위</th>
-                <th>이름</th>
-                <th>
-                    <label class="game-active-area"><input type="checkbox" id="active_0"
-                            onchange="calculateAndRender()"> 진행완료</label>
-                    너도나도<br><small>(높은순)</small>
-                </th>
-                <th>
-                    <label class="game-active-area"><input type="checkbox" id="active_1"
-                            onchange="calculateAndRender()"> 진행완료</label>
-                    플립7<br><small>(높은순)</small>
-                </th>
-                <th>
-                    <label class="game-active-area"><input type="checkbox" id="active_2"
-                            onchange="calculateAndRender()"> 진행완료</label>
-                    젝스님트<br><small>(낮은순)</small>
-                </th>
-                <th>
-                    <label class="game-active-area"><input type="checkbox" id="active_3"
-                            onchange="calculateAndRender()"> 진행완료</label>
-                    핫스트릭<br><small>(높은순)</small>
-                </th>
-                <th>현재 승점 합계</th>
-            </tr>
-        </thead>
+        <thead id="tableHead"></thead>
         <tbody id="tableBody"></tbody>
     </table>
 
     <div class="btn-area">
-        <button class="btn" onclick="calculateAndRender()">🔄 결과 업데이트 & 순위 정렬</button>
+        <button class="btn" onclick="calculateAndRender(); launchFireworks()">🔄 결과 업데이트 & 순위 정렬</button>
     </div>
+
+    <canvas id="confetti-canvas"></canvas>
 
     <script>
         const V_POINTS = [15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        const isHigherBetter = [true, true, false, true];
+
+        let games = [
+            { name: '너도나도', isHigherBetter: true, active: false },
+            { name: '플립7', isHigherBetter: true, active: false },
+            { name: '젝스님트', isHigherBetter: false, active: false },
+            { name: '핫스트릭', isHigherBetter: true, active: false },
+        ];
 
         let players = Array.from({ length: 12 }, (_, i) => ({
             id: i,
             name: `참가자 ${i + 1}`,
-            rawScores: [0, 0, 0, 0],
-            absent: [false, false, false, false],
-            gameVPoints: [0, 0, 0, 0],
+            rawScores: games.map(() => 0),
+            absent: games.map(() => false),
+            gameVPoints: games.map(() => 0),
             totalVPoint: 0
         }));
 
-        function calculateAndRender() {
-            // 0. 활성화된 게임 확인
-            const activeGames = [
-                document.getElementById('active_0').checked,
-                document.getElementById('active_1').checked,
-                document.getElementById('active_2').checked,
-                document.getElementById('active_3').checked
-            ];
+        function addGame() {
+            const nameInput = document.getElementById('newGameName');
+            const orderSelect = document.getElementById('newGameOrder');
+            const name = nameInput.value.trim();
+            if (!name) { nameInput.focus(); return; }
 
-            // 1. 게임별 승점 계산
-            for (let g = 0; g < 4; g++) {
-                if (!activeGames[g]) {
+            games.push({ name, isHigherBetter: orderSelect.value === 'high', active: false });
+            players.forEach(p => {
+                p.rawScores.push(0);
+                p.absent.push(false);
+                p.gameVPoints.push(0);
+            });
+
+            nameInput.value = '';
+            render();
+        }
+
+        function deleteGame(g) {
+            games.splice(g, 1);
+            players.forEach(p => {
+                p.rawScores.splice(g, 1);
+                p.absent.splice(g, 1);
+                p.gameVPoints.splice(g, 1);
+            });
+            calculateAndRender();
+        }
+
+        function calculateAndRender() {
+            // 1. games[g].active 동기화 (체크박스에서 읽기)
+            games.forEach((game, g) => {
+                const cb = document.getElementById(`active_${g}`);
+                game.active = cb ? cb.checked : false;
+            });
+
+            // 2. 게임별 승점 계산
+            for (let g = 0; g < games.length; g++) {
+                if (!games[g].active) {
                     players.forEach(p => p.gameVPoints[g] = 0);
                     continue;
                 }
 
-                let gameRank = players.map(p => ({ id: p.id, val: p.rawScores[g], absent: p.absent[g] }));
-                let participants = gameRank.filter(r => !r.absent);
-                participants.sort((a, b) => isHigherBetter[g] ? b.val - a.val : a.val - b.val);
+                let participants = players
+                    .filter(p => !p.absent[g])
+                    .map(p => ({ id: p.id, val: p.rawScores[g] }));
+                participants.sort((a, b) => games[g].isHigherBetter ? b.val - a.val : a.val - b.val);
 
                 players.forEach(p => {
                     if (p.absent[g]) {
@@ -214,18 +305,39 @@
                 });
             }
 
-            // 2. 합계 계산
+            // 3. 합계 계산
             players.forEach(p => {
                 p.totalVPoint = p.gameVPoints.reduce((a, b) => a + b, 0);
             });
 
-            // 3. 정렬 (총점 내림차순, 이름 오름차순)
+            // 4. 정렬
             players.sort((a, b) => b.totalVPoint - a.totalVPoint || a.name.localeCompare(b.name));
 
-            render(activeGames);
+            render();
         }
 
-        function render(activeGames = [false, false, false, false]) {
+        function renderHead() {
+            const head = document.getElementById('tableHead');
+            let html = '<tr><th>순위</th><th>이름</th>';
+            games.forEach((game, g) => {
+                html += `
+                    <th>
+                        <label class="game-active-area">
+                            <input type="checkbox" id="active_${g}" ${game.active ? 'checked' : ''}
+                                onchange="calculateAndRender()"> 진행완료
+                        </label>
+                        ${game.name}<br>
+                        <small>(${game.isHigherBetter ? '높은순' : '낮은순'})</small>
+                        <button class="btn-delete-game" onclick="deleteGame(${g})" title="게임 삭제">✕</button>
+                    </th>
+                `;
+            });
+            html += '<th>현재 승점 합계</th></tr>';
+            head.innerHTML = html;
+        }
+
+        function render() {
+            renderHead();
             const body = document.getElementById('tableBody');
             body.innerHTML = '';
             players.forEach((p, i) => {
@@ -233,13 +345,13 @@
                 tr.className = 'player-row' + (i === 0 && p.totalVPoint > 0 ? ' gold' : '');
 
                 let gameHtml = '';
-                for (let g = 0; g < 4; g++) {
+                for (let g = 0; g < games.length; g++) {
                     gameHtml += `
                         <td>
                             <input type="number" class="score-input" value="${p.rawScores[g]}" onchange="updateScore(${p.id}, ${g}, this.value)">
                             <br>
                             <label class="absent-text"><input type="checkbox" ${p.absent[g] ? 'checked' : ''} onchange="updateAbsent(${p.id}, ${g}, this.checked)"> 불참</label>
-                            <span class="victory-pts">${activeGames[g] ? p.gameVPoints[g] + 'pt' : '-'}</span>
+                            <span class="victory-pts">${games[g].active ? p.gameVPoints[g] + 'pt' : '-'}</span>
                         </td>
                     `;
                 }
@@ -259,6 +371,100 @@
         function updateAbsent(id, gIdx, val) { players.find(p => p.id === id).absent[gIdx] = val; }
 
         render();
+
+        // ── 폭죽 효과 ──────────────────────────────────────────
+        (function () {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            const COLORS = ['#f1c40f','#e74c3c','#3498db','#2ecc71','#9b59b6','#e67e22','#1abc9c','#ff6b6b'];
+            let particles = [];
+            let rafId = null;
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            function Particle(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() * -12) - 4;
+                this.gravity = 0.35;
+                this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                this.size = Math.random() * 7 + 4;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.3;
+                this.alpha = 1;
+                this.shape = Math.random() < 0.5 ? 'rect' : 'circle';
+            }
+
+            Particle.prototype.update = function () {
+                this.vx *= 0.98;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += this.rotSpeed;
+                this.alpha -= 0.012;
+            };
+
+            Particle.prototype.draw = function () {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                if (this.shape === 'rect') {
+                    ctx.fillRect(-this.size / 2, -this.size / 4, this.size, this.size / 2);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            };
+
+            function burst(x, y, count) {
+                for (let i = 0; i < count; i++) {
+                    particles.push(new Particle(x, y));
+                }
+            }
+
+            function loop() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles = particles.filter(p => p.alpha > 0 && p.y < canvas.height + 20);
+                particles.forEach(p => { p.update(); p.draw(); });
+                if (particles.length > 0) {
+                    rafId = requestAnimationFrame(loop);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    rafId = null;
+                }
+            }
+
+            window.launchFireworks = function () {
+                if (rafId) cancelAnimationFrame(rafId);
+                particles = [];
+
+                const launches = [
+                    [canvas.width * 0.2, canvas.height * 0.55],
+                    [canvas.width * 0.5, canvas.height * 0.45],
+                    [canvas.width * 0.8, canvas.height * 0.55],
+                ];
+                launches.forEach(([x, y], i) => {
+                    setTimeout(() => burst(x, y, 80), i * 180);
+                });
+                setTimeout(() => {
+                    burst(canvas.width * 0.35, canvas.height * 0.5, 60);
+                    burst(canvas.width * 0.65, canvas.height * 0.5, 60);
+                }, 500);
+
+                rafId = requestAnimationFrame(loop);
+            };
+        })();
+        // ───────────────────────────────────────────────────────
     </script>
 </body>
 
