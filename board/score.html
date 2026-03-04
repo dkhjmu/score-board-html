@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>워크샵 챔피언십 스코어보드</title>
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background: #f4f7f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .desc {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        table {
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            width: 98%;
+            max-width: 1200px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+            font-size: 0.85em;
+        }
+
+        .game-active-area {
+            background: #2c3e50;
+            padding: 5px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            display: block;
+            color: #f1c40f;
+            font-weight: bold;
+        }
+
+        .player-row:hover {
+            background: #f9f9f9;
+        }
+
+        .name-input {
+            width: 85px;
+            font-weight: bold;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        .score-input {
+            width: 55px;
+            padding: 5px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .total-col {
+            font-weight: 800;
+            color: #e74c3c;
+            font-size: 1.3em;
+            background: #fff5f5;
+        }
+
+        .victory-pts {
+            font-size: 0.85em;
+            color: #3498db;
+            font-weight: bold;
+            display: block;
+            margin-top: 3px;
+        }
+
+        .btn-area {
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            background: #e67e22;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            box-shadow: 0 4px 0 #d35400;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .gold {
+            background-color: #fff9c4 !important;
+        }
+
+        .absent-text {
+            font-size: 0.75em;
+            color: #95a5a6;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🏆 워크샵 챔피언십 실시간 스코어</h1>
+    <div class="desc">
+        1. 게임 완료 후 상단 <b>[진행완료]</b>를 체크하세요.<br>
+        2. 실제 점수를 입력(젝스님트는 낮은순)하고 하단 <b>[결과 업데이트]</b> 버튼을 누르세요.
+    </div>
+
+    <table id="mainTable">
+        <thead>
+            <tr>
+                <th>순위</th>
+                <th>이름</th>
+                <th>
+                    <label class="game-active-area"><input type="checkbox" id="active_0"
+                            onchange="calculateAndRender()"> 진행완료</label>
+                    너도나도<br><small>(높은순)</small>
+                </th>
+                <th>
+                    <label class="game-active-area"><input type="checkbox" id="active_1"
+                            onchange="calculateAndRender()"> 진행완료</label>
+                    플립7<br><small>(높은순)</small>
+                </th>
+                <th>
+                    <label class="game-active-area"><input type="checkbox" id="active_2"
+                            onchange="calculateAndRender()"> 진행완료</label>
+                    젝스님트<br><small>(낮은순)</small>
+                </th>
+                <th>
+                    <label class="game-active-area"><input type="checkbox" id="active_3"
+                            onchange="calculateAndRender()"> 진행완료</label>
+                    핫스트릭<br><small>(높은순)</small>
+                </th>
+                <th>현재 승점 합계</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <div class="btn-area">
+        <button class="btn" onclick="calculateAndRender()">🔄 결과 업데이트 & 순위 정렬</button>
+    </div>
+
+    <script>
+        const V_POINTS = [15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        const isHigherBetter = [true, true, false, true];
+
+        let players = Array.from({ length: 12 }, (_, i) => ({
+            id: i,
+            name: `참가자 ${i + 1}`,
+            rawScores: [0, 0, 0, 0],
+            absent: [false, false, false, false],
+            gameVPoints: [0, 0, 0, 0],
+            totalVPoint: 0
+        }));
+
+        function calculateAndRender() {
+            // 0. 활성화된 게임 확인
+            const activeGames = [
+                document.getElementById('active_0').checked,
+                document.getElementById('active_1').checked,
+                document.getElementById('active_2').checked,
+                document.getElementById('active_3').checked
+            ];
+
+            // 1. 게임별 승점 계산
+            for (let g = 0; g < 4; g++) {
+                if (!activeGames[g]) {
+                    players.forEach(p => p.gameVPoints[g] = 0);
+                    continue;
+                }
+
+                let gameRank = players.map(p => ({ id: p.id, val: p.rawScores[g], absent: p.absent[g] }));
+                let participants = gameRank.filter(r => !r.absent);
+                participants.sort((a, b) => isHigherBetter[g] ? b.val - a.val : a.val - b.val);
+
+                players.forEach(p => {
+                    if (p.absent[g]) {
+                        p.gameVPoints[g] = 3;
+                    } else {
+                        let rankIdx = participants.findIndex(pr => pr.id === p.id);
+                        p.gameVPoints[g] = (rankIdx !== -1 && rankIdx < V_POINTS.length) ? V_POINTS[rankIdx] : 1;
+                    }
+                });
+            }
+
+            // 2. 합계 계산
+            players.forEach(p => {
+                p.totalVPoint = p.gameVPoints.reduce((a, b) => a + b, 0);
+            });
+
+            // 3. 정렬 (총점 내림차순, 이름 오름차순)
+            players.sort((a, b) => b.totalVPoint - a.totalVPoint || a.name.localeCompare(b.name));
+
+            render(activeGames);
+        }
+
+        function render(activeGames = [false, false, false, false]) {
+            const body = document.getElementById('tableBody');
+            body.innerHTML = '';
+            players.forEach((p, i) => {
+                const tr = document.createElement('tr');
+                tr.className = 'player-row' + (i === 0 && p.totalVPoint > 0 ? ' gold' : '');
+
+                let gameHtml = '';
+                for (let g = 0; g < 4; g++) {
+                    gameHtml += `
+                        <td>
+                            <input type="number" class="score-input" value="${p.rawScores[g]}" onchange="updateScore(${p.id}, ${g}, this.value)">
+                            <br>
+                            <label class="absent-text"><input type="checkbox" ${p.absent[g] ? 'checked' : ''} onchange="updateAbsent(${p.id}, ${g}, this.checked)"> 불참</label>
+                            <span class="victory-pts">${activeGames[g] ? p.gameVPoints[g] + 'pt' : '-'}</span>
+                        </td>
+                    `;
+                }
+
+                tr.innerHTML = `
+                    <td class="rank-col">${p.totalVPoint > 0 ? (i + 1) + '위' : '-'}</td>
+                    <td><input type="text" class="name-input" value="${p.name}" onchange="updateName(${p.id}, this.value)"></td>
+                    ${gameHtml}
+                    <td class="total-col">${p.totalVPoint}</td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        function updateName(id, val) { players.find(p => p.id === id).name = val; }
+        function updateScore(id, gIdx, val) { players.find(p => p.id === id).rawScores[gIdx] = parseInt(val) || 0; }
+        function updateAbsent(id, gIdx, val) { players.find(p => p.id === id).absent[gIdx] = val; }
+
+        render();
+    </script>
+</body>
+
+</html>
